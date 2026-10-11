@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { AccessDeniedError } from '@/libs/biology/AccessGuard';
 import { OmnibarParser } from '@/libs/omnibar/OmnibarParser';
+import { OmnibarReactor } from '@/libs/omnibar/OmnibarReactor';
 
 describe('Omnibarra Mecánica: OmnibarParser', () => {
   // Fecha fija de referencia: Martes 20 de Octubre de 2026, 09:00:00
@@ -140,6 +142,32 @@ describe('Omnibarra Mecánica: OmnibarParser', () => {
       // Temporal
       expect(intent.temporal?.hasTime).toBe(true);
       expect(intent.temporal?.dueDate.getHours()).toBe(10);
+    });
+  });
+
+  describe('OmnibarReactor: Seguridad y Control de Acceso', () => {
+    it('bloquea tajantemente la ingesta si el usuario tiene rol viewer', async () => {
+      const viewerContext = {
+        organizationId: 'org-test',
+        userId: 'user-viewer',
+        role: 'viewer' as const,
+      };
+
+      await expect(
+        OmnibarReactor.ingest(viewerContext, 'Tarea no autorizada'),
+      ).rejects.toThrow(AccessDeniedError);
+    });
+
+    it('bloquea la ingesta si el usuario tiene rol guest', async () => {
+      const guestContext = {
+        organizationId: 'org-test',
+        userId: 'user-guest',
+        role: 'guest' as const,
+      };
+
+      await expect(
+        OmnibarReactor.ingest(guestContext, 'Intento de escritura de invitado'),
+      ).rejects.toThrow(AccessDeniedError);
     });
   });
 });
