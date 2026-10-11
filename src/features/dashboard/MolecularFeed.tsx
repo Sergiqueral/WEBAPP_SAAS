@@ -5,6 +5,7 @@ import { CheckCircle2, FileText, Inbox, Layers, ListTodo, Plus, RefreshCw, Spark
 import React, { useCallback, useEffect, useState } from 'react';
 import { ContextFilterBar } from './ContextFilterBar';
 import { MoleculeCard } from './MoleculeCard';
+import { MoleculeDetailModal } from './MoleculeDetailModal';
 
 type FeedTab = 'all' | 'inbox' | 'note' | 'task';
 type StatusFilter = 'all' | 'done' | 'pending';
@@ -13,6 +14,9 @@ export const MolecularFeed: React.FC = () => {
   const [activeTab, setActiveTab] = useState<FeedTab>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
   const [activeFilterAtom, setActiveFilterAtom] = useState<Atom | null>(null);
+
+  const [selectedAtomId, setSelectedAtomId] = useState<string | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const [molecules, setMolecules] = useState<MolecularProjection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -140,6 +144,26 @@ export const MolecularFeed: React.FC = () => {
         bubbles: true,
       }),
     );
+  };
+
+  const handleOpenDetail = (id: string) => {
+    setSelectedAtomId(id);
+    setIsDetailOpen(true);
+  };
+
+  const handleAtomMutated = (updatedAtom: Atom) => {
+    setMolecules(prev =>
+      prev.map((m) => {
+        if (m.root.id === updatedAtom.id) {
+          return { ...m, root: updatedAtom };
+        }
+        return m;
+      }),
+    );
+  };
+
+  const handleAtomDeletedFromDetail = (deletedId: string) => {
+    setMolecules(prev => prev.filter(m => m.root.id !== deletedId));
   };
 
   return (
@@ -413,10 +437,23 @@ export const MolecularFeed: React.FC = () => {
                     onToggleStatus={handleToggleStatus}
                     onDelete={handleDelete}
                     onFilterByAtom={atom => setActiveFilterAtom(atom)}
+                    onOpenDetail={handleOpenDetail}
                   />
                 ))}
               </div>
             )}
+
+      {/* Modal de Detalle Molecular y Navegación del Grafo */}
+      <MoleculeDetailModal
+        isOpen={isDetailOpen}
+        atomId={selectedAtomId}
+        onClose={() => {
+          setIsDetailOpen(false);
+          setSelectedAtomId(null);
+        }}
+        onAtomMutated={handleAtomMutated}
+        onAtomDeleted={handleAtomDeletedFromDetail}
+      />
     </div>
   );
 };

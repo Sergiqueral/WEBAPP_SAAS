@@ -1,13 +1,14 @@
 'use client';
 
 import type { Atom, MolecularProjection } from '@/types/biology';
-import { Calendar, Check, FileText, Hash, Inbox, Trash2, User } from 'lucide-react';
+import { Calendar, Check, FileText, Hash, Inbox, Network, Trash2, User } from 'lucide-react';
 import React from 'react';
 
 type MoleculeCardProps = {
   molecule: MolecularProjection;
   onDelete?: (atomId: string) => void;
   onFilterByAtom?: (atom: Atom) => void;
+  onOpenDetail?: (atomId: string) => void;
   onToggleStatus?: (atomId: string, currentStatus: string) => void;
 };
 
@@ -15,6 +16,7 @@ export const MoleculeCard: React.FC<MoleculeCardProps> = ({
   molecule,
   onDelete,
   onFilterByAtom,
+  onOpenDetail,
   onToggleStatus,
 }) => {
   const { incoming, outgoing, root } = molecule;
@@ -145,17 +147,20 @@ export const MoleculeCard: React.FC<MoleculeCardProps> = ({
       {/* Contenido principal */}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span
+          <button
+            type="button"
+            onClick={() => onOpenDetail?.(root.id)}
             className={`
-              text-base font-medium wrap-break-word text-foreground
+              text-left text-base font-medium wrap-break-word text-foreground
               transition-all
+              hover:text-primary hover:underline
               ${
     isDone ? 'text-muted-foreground line-through' : ''
     }
             `}
           >
             {title}
-          </span>
+          </button>
 
           {/* Badge del tipo de átomo si no es tarea */}
           {!isTask && (
@@ -265,6 +270,20 @@ export const MoleculeCard: React.FC<MoleculeCardProps> = ({
         focus-within:opacity-100
       "
       >
+        {onOpenDetail && (
+          <button
+            type="button"
+            onClick={() => onOpenDetail(root.id)}
+            className="
+              rounded-md p-1.5 text-muted-foreground transition-colors
+              hover:bg-accent hover:text-foreground
+            "
+            aria-label="Explorar red sináptica"
+            title="Explorar red sináptica"
+          >
+            <Network className="size-4" />
+          </button>
+        )}
         {onDelete && (
           <button
             type="button"
