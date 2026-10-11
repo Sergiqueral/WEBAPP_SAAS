@@ -88,3 +88,17 @@ export type MolecularProjection = {
   incoming: SynapseNeighbor[];
   externalIdentities: AtomExternalIdentity[];
 };
+
+export type GetMoleculesOptions = {
+  type?: string;
+  status?: string;
+  targetAtomId?: string;
+  limit?: number;
+  offset?: number;
+};
+
+export const UpdateAtomInputSchema = z.object({
+  payload: z.record(z.string(), z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+export type UpdateAtomInput = z.infer<typeof UpdateAtomInputSchema>;
