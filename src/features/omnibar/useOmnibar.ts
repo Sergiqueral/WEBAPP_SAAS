@@ -22,10 +22,39 @@ export function useOmnibar(options: UseOmnibarOptions = {}) {
   const [error, setError] = useState<string | null>(null);
   const [lastSynthesizedMolecule, setLastSynthesizedMolecule] = useState<MolecularProjection | null>(null);
 
+  const [fetchedEntities, setFetchedEntities] = useState<Array<{ id: string; name: string }>>([]);
+  const [fetchedContexts, setFetchedContexts] = useState<Array<{ id: string; name: string }>>([]);
+
+  const refreshSuggestions = useCallback(async () => {
+    try {
+      const res = await fetch('/api/v1/omnibar/suggestions');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.entities)) {
+          setFetchedEntities(data.entities);
+        }
+        if (Array.isArray(data.contexts)) {
+          setFetchedContexts(data.contexts);
+        }
+      }
+    } catch {
+      // Ignorar fallo silencioso de red
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && knownEntities.length === 0 && knownContexts.length === 0) {
+      void refreshSuggestions();
+    }
+  }, [isOpen, knownEntities.length, knownContexts.length, refreshSuggestions]);
+
+  const effectiveEntities = knownEntities.length > 0 ? knownEntities : fetchedEntities;
+  const effectiveContexts = knownContexts.length > 0 ? knownContexts : fetchedContexts;
+
   // Parseo determinista en tiempo real de los tokens conforme el usuario escribe
   const parsedTokens: ParsedTokens = useMemo(() => {
-    return OmnibarParser.extractTokens(rawText, { knownEntities });
-  }, [rawText, knownEntities]);
+    return OmnibarParser.extractTokens(rawText, { knownEntities: effectiveEntities });
+  }, [rawText, effectiveEntities]);
 
   // Detección del contexto activo para el autocompletado (@ o #)
   const activeTrigger = useMemo(() => {
@@ -67,7 +96,7 @@ export function useOmnibar(options: UseOmnibarOptions = {}) {
     const lowerQuery = query.toLowerCase().trim();
 
     if (type === 'entity') {
-      const matches: OmnibarSuggestion[] = knownEntities
+      const matches: OmnibarSuggestion[] = effectiveEntities
         .filter(e => e.name.toLowerCase().includes(lowerQuery))
         .map(e => ({
           id: e.id,
@@ -89,7 +118,7 @@ export function useOmnibar(options: UseOmnibarOptions = {}) {
       return matches;
     }
 
-    const matches: OmnibarSuggestion[] = knownContexts
+    const matches: OmnibarSuggestion[] = effectiveContexts
       .filter(c => c.name.toLowerCase().includes(lowerQuery))
       .map(c => ({
         id: c.id,
@@ -109,7 +138,7 @@ export function useOmnibar(options: UseOmnibarOptions = {}) {
     }
 
     return matches;
-  }, [activeTrigger, knownEntities, knownContexts]);
+  }, [activeTrigger, effectiveEntities, effectiveContexts]);
 
   // Inserción de una sugerencia seleccionada en el texto
   const applySuggestion = useCallback(
@@ -159,6 +188,7 @@ export function useOmnibar(options: UseOmnibarOptions = {}) {
       const molecule: MolecularProjection = data.molecule;
       setLastSynthesizedMolecule(molecule);
       setRawText('');
+      void refreshSuggestions();
       onSuccess?.(molecule);
     } catch (err) {
       const errObj = err instanceof Error ? err : new Error(String(err));
@@ -167,7 +197,7 @@ export function useOmnibar(options: UseOmnibarOptions = {}) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [rawText, isSubmitting, onSuccess, onError]);
+  }, [rawText, isSubmitting, onSuccess, onError, refreshSuggestions]);
 
   // Atajo de teclado global (Cmd+K / Ctrl+K)
   useEffect(() => {

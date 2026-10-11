@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { DashboardHeader } from '@/features/dashboard/DashboardHeader';
+import { OmnibarModal } from '@/features/omnibar';
 
 type DashboardLayoutProps = {
   params: Promise<{ locale: string }>;
@@ -60,6 +61,8 @@ export default async function DashboardLayout(props: DashboardLayoutProps) {
           {props.children}
         </div>
       </div>
+
+      <OmnibarModal />
     </>
   );
 }

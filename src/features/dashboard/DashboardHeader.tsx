@@ -3,8 +3,8 @@ import { useLocale } from 'next-intl';
 import Link from 'next/link';
 import { ActiveLink } from '@/components/ActiveLink';
 import { LocaleSwitcher } from '@/components/LocaleSwitcher';
-
 import { Separator } from '@/components/ui/separator';
+import { OmnibarTrigger } from '@/features/omnibar';
 import { Logo } from '@/templates/Logo';
 import { getI18nPath } from '@/utils/Helpers';
 import { MobileNavigation } from './MobileNavigation';
@@ -52,6 +52,10 @@ export const DashboardHeader = (props: {
 
       <div>
         <ul className="flex items-center gap-x-1.5">
+          <li>
+            <OmnibarTrigger />
+          </li>
+
           <li className="lg:hidden">
             <MobileNavigation menu={props.menu} />
           </li>
