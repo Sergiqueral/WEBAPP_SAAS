@@ -189,6 +189,9 @@ export function useOmnibar(options: UseOmnibarOptions = {}) {
       setLastSynthesizedMolecule(molecule);
       setRawText('');
       void refreshSuggestions();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('omnibar:molecule_ingested', { detail: molecule }));
+      }
       onSuccess?.(molecule);
     } catch (err) {
       const errObj = err instanceof Error ? err : new Error(String(err));
