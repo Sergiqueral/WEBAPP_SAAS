@@ -1,5 +1,11 @@
 rc: ./.lefthookrc
 
+# Validate commit messages
+commit-msg:
+  jobs:
+    - name: commitlint
+      run: npx --no -- commitlint --edit {1}
+
 # Validate content before committing
 pre-commit:
   jobs:

@@ -12,3 +12,6 @@ for node_dir in "/c/Program Files/nodejs" "$APPDATA/npm" "$LOCALAPPDATA/Programs
     export PATH="$node_dir:$PATH"
   fi
 done
+if [ -d "/c/Program Files/Git/usr/bin" ]; then
+  export PATH="/c/Program Files/Git/usr/bin:/c/Program Files/Git/bin:$PATH"
+fi

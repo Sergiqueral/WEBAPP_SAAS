@@ -4,7 +4,7 @@ import type { AppLocale } from '@/types/I18n';
 import { enUS, esES, frFR } from '@clerk/localizations';
 
 /** Locale prefix strategy for next-intl routing. */
-const localePrefix: LocalePrefixMode = 'as-needed';
+const localePrefix: LocalePrefixMode = 'always';
 const locales = [
   {
     id: 'es',
