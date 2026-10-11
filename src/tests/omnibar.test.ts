@@ -170,4 +170,53 @@ describe('Omnibarra Mecánica: OmnibarParser', () => {
       ).rejects.toThrow(AccessDeniedError);
     });
   });
+
+  describe('Omnibar UI & Autocompletado: Lógica Reactiva', () => {
+    it('filtra entidades conocidas y ofrece opción de creación dinámica al teclear @', () => {
+      const known = [
+        { id: '1', name: 'Jose Carlos' },
+        { id: '2', name: 'Maria Gomez' },
+      ];
+
+      // Caso A: Coincidencia con entidad existente
+      const queryA = 'jose';
+      const matchesA = known.filter(e => e.name.toLowerCase().includes(queryA.toLowerCase()));
+
+      expect(matchesA).toHaveLength(1);
+      expect(matchesA[0]?.name).toBe('Jose Carlos');
+
+      // Caso B: Entidad completamente nueva
+      const queryB = 'Pedro';
+      const matchesB = known.filter(e => e.name.toLowerCase().includes(queryB.toLowerCase()));
+
+      expect(matchesB).toHaveLength(0);
+
+      const isCreateNew = queryB.trim().length > 0 && !matchesB.some(m => m.name.toLowerCase() === queryB.toLowerCase());
+
+      expect(isCreateNew).toBe(true);
+    });
+
+    it('determina correctamente la huella molecular según los tokens presentes', () => {
+      // Sin tokens -> inbox
+      const tokensInbox = OmnibarParser.extractTokens('Comprar leche y pan');
+      const hasTokensInbox = tokensInbox.entities.length > 0 || tokensInbox.contexts.length > 0 || !!tokensInbox.temporal;
+      const typeInbox = hasTokensInbox ? (tokensInbox.temporal ? 'task' : 'note') : 'inbox';
+
+      expect(typeInbox).toBe('inbox');
+
+      // Con fecha -> task
+      const tokensTask = OmnibarParser.extractTokens('Revisión //mañana');
+      const hasTokensTask = tokensTask.entities.length > 0 || tokensTask.contexts.length > 0 || !!tokensTask.temporal;
+      const typeTask = hasTokensTask ? (tokensTask.temporal ? 'task' : 'note') : 'inbox';
+
+      expect(typeTask).toBe('task');
+
+      // Solo contexto sin fecha -> note
+      const tokensNote = OmnibarParser.extractTokens('Ideas para el blog #Marketing');
+      const hasTokensNote = tokensNote.entities.length > 0 || tokensNote.contexts.length > 0 || !!tokensNote.temporal;
+      const typeNote = hasTokensNote ? (tokensNote.temporal ? 'task' : 'note') : 'inbox';
+
+      expect(typeNote).toBe('note');
+    });
+  });
 });

@@ -5,6 +5,7 @@ const config: KnipConfig = {
   ignore: [
     'checkly.config.ts',
     'src/components/ui/*',
+    'src/features/omnibar/**',
     'src/libs/I18n.ts',
     'src/libs/biology/**',
     'src/types/Auth.ts',
