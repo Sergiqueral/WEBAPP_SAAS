@@ -11,12 +11,14 @@ const config: KnipConfig = {
     'src/libs/biology/**',
     'src/types/Auth.ts',
     'src/types/biology.ts',
+    'src/types/omnibar.ts',
     'src/utils/DBConnection.ts',
   ],
   // Dependencies to ignore during analysis
   ignoreDependencies: [
     '@clerk/shared',
     '@logtape/logtape',
+    '@radix-ui/react-dialog',
     '@swc/helpers', // Avoid error in CI: "`npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync."
   ],
   // Include custom Playwright test file suffixes
