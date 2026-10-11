@@ -1,11 +1,15 @@
 import type { LocalizationResource } from '@clerk/shared/types';
 import type { LocalePrefixMode } from 'next-intl/routing';
 import type { AppLocale } from '@/types/I18n';
-import { enUS, frFR } from '@clerk/localizations';
+import { enUS, esES, frFR } from '@clerk/localizations';
 
 /** Locale prefix strategy for next-intl routing. */
 const localePrefix: LocalePrefixMode = 'as-needed';
 const locales = [
+  {
+    id: 'es',
+    name: 'Español',
+  },
   {
     id: 'en',
     name: 'English',
@@ -22,7 +26,7 @@ export const AppConfig = {
   name: 'SaaS Template',
   i18n: {
     locales,
-    defaultLocale: 'en',
+    defaultLocale: 'es',
     localePrefix,
   },
   email: {
@@ -31,12 +35,13 @@ export const AppConfig = {
 } as const;
 
 const supportedLocales: Record<string, LocalizationResource> = {
+  es: esES,
   en: enUS,
   fr: frFR,
 };
 
 export const ClerkLocalizations = {
-  defaultLocale: enUS,
+  defaultLocale: esES,
   supportedLocales,
 };
 

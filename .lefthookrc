@@ -1,0 +1,14 @@
+# Ensure Git for Windows bash is prioritized over WSL bash
+for git_bin in "/c/Program Files/Git/bin" "$LOCALAPPDATA/Programs/Git/bin"; do
+  if [ -d "$git_bin" ]; then
+    export PATH="$git_bin:$PATH"
+    break
+  fi
+done
+
+# Ensure Node.js and global npm binaries are in PATH
+for node_dir in "/c/Program Files/nodejs" "$APPDATA/npm" "$LOCALAPPDATA/Programs/nodejs"; do
+  if [ -d "$node_dir" ]; then
+    export PATH="$node_dir:$PATH"
+  fi
+done

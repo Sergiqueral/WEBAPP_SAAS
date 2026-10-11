@@ -1,0 +1,122 @@
+{
+  "Index": {
+    "meta_title": "SaaS Template - La plantilla SaaS perfecta para construir y escalar tu negocio con facilidad.",
+    "meta_description": "Una plantilla gratuita y de código abierto de landing page para tu negocio SaaS, construida con React, TypeScript, Shadcn UI y Tailwind CSS."
+  },
+  "Navbar": {
+    "sign_in": "Iniciar sesión",
+    "sign_up": "Registrarse",
+    "product": "Producto",
+    "pricing": "Precios",
+    "docs": "Documentación",
+    "blog": "Blog",
+    "about": "Acerca de"
+  },
+  "LocaleSwitcher": {
+    "button_label": "Cambiar idioma"
+  },
+  "Hero": {
+    "follow_twitter": "Sigue a @Ixartz en Twitter",
+    "title": "La plantilla <important>SaaS perfecta</important> para construir y escalar tu negocio con facilidad.",
+    "description": "Una plantilla gratuita y de código abierto de landing page para tu negocio SaaS, construida con React, TypeScript, Shadcn UI y Tailwind CSS.",
+    "primary_button": "Obtener Next.js SaaS Starter Kit",
+    "secondary_button": "Dar estrella en GitHub"
+  },
+  "Features": {
+    "section_subtitle": "Características",
+    "section_title": "Desbloquea todo el potencial de la plantilla SaaS",
+    "section_description": "Una plantilla gratuita y de código abierto de landing page para tu negocio SaaS, construida con React, TypeScript, Shadcn UI y Tailwind CSS.",
+    "feature1_title": "Node.js",
+    "feature2_title": "React",
+    "feature3_title": "Tailwind CSS",
+    "feature4_title": "TypeScript",
+    "feature5_title": "Shadcn UI",
+    "feature6_title": "ESLint",
+    "feature_description": "Una plantilla gratuita y de código abierto de landing page para tu negocio SaaS, construida con React, TypeScript, Shadcn UI y Tailwind CSS."
+  },
+  "Pricing": {
+    "section_subtitle": "Precios",
+    "section_title": "Desbloquea todo el potencial de la plantilla SaaS",
+    "section_description": "Una plantilla gratuita y de código abierto de landing page para tu negocio SaaS, construida con React, TypeScript, Shadcn UI y Tailwind CSS.",
+    "button_text": "Empezar"
+  },
+  "PricingPlans": {
+    "free_plan_name": "Gratis",
+    "premium_plan_name": "Premium",
+    "enterprise_plan_name": "Enterprise"
+  },
+  "PricingCard": {
+    "free_plan_description": "Para particulares",
+    "premium_plan_description": "Para equipos pequeños",
+    "enterprise_plan_description": "Para líderes de la industria",
+    "plan_price": "${price}",
+    "plan_interval_month": "/ mes",
+    "plan_interval_year": "/ año"
+  },
+  "PricingFeatures": {
+    "feature_team_member": "Hasta {number} miembros de equipo",
+    "feature_website": "Hasta {number} sitios web",
+    "feature_storage": "{number} GB de almacenamiento",
+    "feature_transfer": "{number} TB de transferencia",
+    "feature_email_support": "Soporte por correo electrónico"
+  },
+  "SponsorLogos": {
+    "sponsored_by": "Patrocinado por",
+    "clerk_logo": "Logo de Clerk",
+    "sentry_logo": "Logo de Sentry",
+    "crowdin_logo": "Logo de Crowdin",
+    "arcjet_logo": "Logo de Arcjet",
+    "coderabbit_logo": "Logo de CodeRabbit",
+    "nextjs_boilerplate_logo": "Logo de Next.js SaaS Boilerplate"
+  },
+  "FAQ": {
+    "question": "Lorem ipsum dolor sit amet, consectetur adipiscing elit?",
+    "answer": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam aliquam enim dui, id consequat turpis ullamcorper ac. Mauris id quam dolor. Nullam eu egestas turpis. Proin risus elit, sollicitudin in mi a, accumsan euismod turpis. In euismod mi sed diam tristique hendrerit."
+  },
+  "CTA": {
+    "title": "¿Estás listo?",
+    "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+    "button_text": "Obtener Next.js SaaS Starter Kit"
+  },
+  "Footer": {
+    "product": "Producto",
+    "docs": "Documentación",
+    "blog": "Blog",
+    "community": "Comunidad",
+    "company": "Compañía",
+    "terms_of_service": "Términos del servicio",
+    "privacy_policy": "Política de privacidad",
+    "footer_text": "© {year} {name}. Creado con <author></author>."
+  },
+  "SignIn": {
+    "meta_title": "Iniciar sesión",
+    "meta_description": "Inicia sesión fácilmente en tu cuenta con nuestro intuitivo proceso de acceso."
+  },
+  "SignUp": {
+    "meta_title": "Registrarse",
+    "meta_description": "Crea una cuenta sin esfuerzo a través de nuestro intuitivo proceso de registro."
+  },
+  "DashboardLayout": {
+    "meta_title": "Panel de control de SaaS Template",
+    "meta_description": "Una plantilla gratuita y de código abierto de landing page para tu negocio SaaS, construida con Next.js, TypeScript, Shadcn UI y Tailwind CSS.",
+    "home": "Inicio",
+    "members": "Miembros",
+    "settings": "Configuración"
+  },
+  "DashboardIndexPage": {
+    "title_bar": "Panel de control",
+    "title_bar_description": "Bienvenido a tu panel de control",
+    "message_state_title": "Comencemos",
+    "message_state_description": "Personaliza esta página editando el archivo en <code>dashboard/page.tsx</code>.",
+    "message_state_alternative": "¿Necesitas características avanzadas? Next.js 16 & React 19, Multi-tenancy & Equipos, Roles & Permisos, Shadcn UI,\nSeguridad de tipos de extremo a extremo con oRPC, Pagos con Stripe, Modo claro / oscuro. Prueba <url></url>.",
+    "max_message": "¿O necesitas un sistema de autenticación auto-alojado (Better Auth)? Prueba <url></url>."
+  },
+  "UserProfilePage": {
+    "title_bar": "Perfil de usuario",
+    "title_bar_description": "Ver y gestionar tu perfil de usuario"
+  },
+  "OrganizationProfilePage": {
+    "title_bar": "Gestión de la organización",
+    "title_bar_description": "Gestiona tu organización"
+  }
+}

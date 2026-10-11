@@ -17,7 +17,7 @@ preserve_hierarchy: true
 # Files configuration
 #
 files:
-  - source: /src/locales/en.json
+  - source: /src/locales/es.json
 
     #
     # Where translations will be placed

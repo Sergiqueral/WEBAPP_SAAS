@@ -8,7 +8,9 @@ const config: KnipConfig = {
     'src/libs/DB.ts',
     'src/libs/I18n.ts',
     'src/libs/Logger.ts',
+    'src/libs/biology/**',
     'src/types/Auth.ts',
+    'src/types/biology.ts',
     'src/utils/DBConnection.ts',
   ],
   // Dependencies to ignore during analysis
