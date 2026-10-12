@@ -43,6 +43,22 @@ export default async function proxy(
 
       const authObj = await auth();
 
+      // If user is already authenticated and visits sign-in or sign-up, redirect to dashboard or onboarding
+      if (authObj.userId && isAuthPage(req)) {
+        const locale = req.nextUrl.pathname.match(/^\/([^/]+)/)?.at(1) ?? routing.defaultLocale;
+
+        if (!authObj.orgId) {
+          const orgSelection = new URL(
+            `/${locale}/onboarding/organization-selection`,
+            req.url,
+          );
+          return NextResponse.redirect(orgSelection);
+        }
+
+        const dashboard = new URL(`/${locale}/dashboard`, req.url);
+        return NextResponse.redirect(dashboard);
+      }
+
       // Redirect authenticated users without an organization to the organization selection page
       // This ensures users are properly associated with an organization before accessing the dashboard
       if (

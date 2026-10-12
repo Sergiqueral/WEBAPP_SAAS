@@ -25,6 +25,10 @@ export default async function SignUpPage(props: SignUpPageProps) {
   setRequestLocale(locale);
 
   return (
-    <SignUp path={getI18nPath('/sign-up', locale)} />
+    <SignUp
+      path={getI18nPath('/sign-up', locale)}
+      signInUrl={getI18nPath('/sign-in', locale)}
+      fallbackRedirectUrl={getI18nPath('/dashboard', locale)}
+    />
   );
 };
