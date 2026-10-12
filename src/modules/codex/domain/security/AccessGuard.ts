@@ -13,7 +13,7 @@ export class AccessGuard {
    * El rol 'viewer' (solo lectura) NUNCA puede escribir.
    */
   static canWrite(role: Role): boolean {
-    return role === 'owner' || role === 'admin' || role === 'member';
+    return role === 'superadmin' || role === 'owner' || role === 'admin' || role === 'member';
   }
 
   /**
@@ -42,6 +42,11 @@ export class AccessGuard {
     atom: Atom,
     directSynapses: Link[] = [],
   ): boolean {
+    // Superadmin del sistema tiene acceso de auditoría universal
+    if (context.role === 'superadmin') {
+      return true;
+    }
+
     // Regla 1: Aislamiento absoluto por organización
     if (atom.organizationId !== context.organizationId) {
       return false;

@@ -34,6 +34,8 @@ export const PreferencesModal: React.FC = () => {
   const orgId = organization?.id || user?.id || 'personal_workspace';
   const isAdmin = membership?.role === 'org:admin'
     || isOwnerEmail
+    || user?.publicMetadata?.role === 'superadmin'
+    || user?.id === 'user_3Kc1HOablotlg14RM5DNuHh4RKp'
     || isKeyUnlocked
     || process.env.NODE_ENV === 'development';
 

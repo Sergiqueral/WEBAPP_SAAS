@@ -1,4 +1,4 @@
-import { index, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { boolean, index, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
 // ==========================================
 // MÓDULO GORILA CODEX: BIOLOGÍA DEL DATO
@@ -95,4 +95,23 @@ export const atomExternalIdentitiesSchema = pgTable('atom_external_identities', 
 }, table => [
   uniqueIndex('external_id_unique_idx').on(table.organizationId, table.provider, table.externalId),
   index('external_atom_idx').on(table.organizationId, table.atomId),
+]);
+
+export const systemSuperadminsSchema = pgTable('system_superadmins', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id'),
+  email: text('email').notNull(),
+  role: text('role').notNull().default('superadmin'),
+  isGranted: boolean('is_granted').notNull().default(true),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'date' })
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+}, table => [
+  uniqueIndex('system_superadmins_email_idx').on(table.email),
+  index('system_superadmins_user_idx').on(table.userId),
 ]);

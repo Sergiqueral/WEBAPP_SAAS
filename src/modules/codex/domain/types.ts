@@ -6,7 +6,7 @@ export { AccessDeniedError } from './security/AccessGuard';
 // ROLES Y SEGURIDAD MULTI-TENANT
 // ==========================================
 
-export const RoleSchema = z.enum(['owner', 'admin', 'member', 'viewer', 'guest']);
+export const RoleSchema = z.enum(['superadmin', 'owner', 'admin', 'member', 'viewer', 'guest']);
 export type Role = z.infer<typeof RoleSchema>;
 
 export const TenantContextSchema = z.object({

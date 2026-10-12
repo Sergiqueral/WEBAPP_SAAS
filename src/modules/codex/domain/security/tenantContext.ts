@@ -1,12 +1,13 @@
 import type { Role, TenantContext } from '../types';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/libs/DB';
-import { membershipsSchema } from '../../db/schema';
+import { membershipsSchema, systemSuperadminsSchema } from '../../db/schema';
 
 /**
  * Resuelve de forma segura el contexto multi-inquilino del usuario autenticado en Clerk.
  * - Soporta organizaciones de Clerk (`orgId`).
  * - Soporta organizaciones en base de datos (`membershipsSchema`).
+ * - Soporta superadministradores del sistema en BD (`systemSuperadminsSchema`).
  * - Soporta espacio de trabajo personal (`userId` como organización por defecto y rol `admin`).
  */
 export async function resolveTenantContext(
@@ -16,6 +17,28 @@ export async function resolveTenantContext(
   requestedOrgId?: string | null,
 ): Promise<TenantContext> {
   const targetOrgId = clerkOrgId ?? requestedOrgId;
+
+  // 1. Comprobación de Superadmin Global del Sistema en BD
+  let isSuperadmin = userId === 'user_3Kc1HOablotlg14RM5DNuHh4RKp';
+  if (!isSuperadmin) {
+    try {
+      const [adminRecord] = await db
+        .select({ role: systemSuperadminsSchema.role })
+        .from(systemSuperadminsSchema)
+        .where(
+          and(
+            eq(systemSuperadminsSchema.userId, userId),
+            eq(systemSuperadminsSchema.isGranted, true),
+          ),
+        )
+        .limit(1);
+      if (adminRecord?.role === 'superadmin') {
+        isSuperadmin = true;
+      }
+    } catch {
+      // Ignorar si la tabla se está migrando
+    }
+  }
 
   if (targetOrgId) {
     let role: Role = clerkOrgRole === 'org:admin' ? 'admin' : 'member';
@@ -33,6 +56,10 @@ export async function resolveTenantContext(
 
     if (membership?.role) {
       role = membership.role as Role;
+    }
+
+    if (isSuperadmin) {
+      role = 'superadmin';
     }
 
     return {
@@ -56,7 +83,7 @@ export async function resolveTenantContext(
     return {
       organizationId: userMembership.organizationId,
       userId,
-      role: userMembership.role as Role,
+      role: (isSuperadmin ? 'superadmin' : userMembership.role) as Role,
     };
   }
 
@@ -64,6 +91,6 @@ export async function resolveTenantContext(
   return {
     organizationId: userId,
     userId,
-    role: 'admin',
+    role: isSuperadmin ? 'superadmin' : 'admin',
   };
 }

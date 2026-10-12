@@ -22,6 +22,20 @@
       "when": 1791825921063,
       "tag": "0002_damp_terror",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791844813167,
+      "tag": "0003_quiet_luckman",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791845108665,
+      "tag": "0004_organic_slyde",
+      "breakpoints": true
     }
   ]
 }
