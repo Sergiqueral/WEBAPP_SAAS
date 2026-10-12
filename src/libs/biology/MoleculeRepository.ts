@@ -68,6 +68,10 @@ export class MoleculeRepository {
         conditions.push(
           sql`COALESCE(${atomsSchema.payload}->>'status', 'pending') != 'done'`,
         );
+      } else if (status === 'in_progress') {
+        conditions.push(
+          sql`${atomsSchema.payload}->>'status' = 'in_progress'`,
+        );
       } else if (status === 'done') {
         conditions.push(
           sql`${atomsSchema.payload}->>'status' = 'done'`,

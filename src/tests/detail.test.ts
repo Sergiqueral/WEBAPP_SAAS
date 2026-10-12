@@ -147,21 +147,25 @@ describe('Detalle Molecular y Enlaces Sinápticos (Hito 4.1)', () => {
 
       // Hop 1: Saltar hacia el cliente conectado (@Juan Fontanería)
       subHistory = [...subHistory, 'atom-client-1'];
+
       expect(getCurrentId()).toBe('atom-client-1');
       expect(subHistory.length + 1).toBe(2);
 
       // Hop 2: Saltar hacia el proyecto (#Reforma-Cocina)
       subHistory = [...subHistory, 'atom-project-1'];
+
       expect(getCurrentId()).toBe('atom-project-1');
       expect(subHistory.length + 1).toBe(3);
 
       // Back 1: Retroceder al cliente
       subHistory = subHistory.slice(0, -1);
+
       expect(getCurrentId()).toBe('atom-client-1');
       expect(subHistory.length + 1).toBe(2);
 
       // Back 2: Retroceder al átomo original
       subHistory = subHistory.slice(0, -1);
+
       expect(getCurrentId()).toBe('atom-task-1');
       expect(subHistory.length + 1).toBe(1);
     });
@@ -205,4 +209,3 @@ describe('Detalle Molecular y Enlaces Sinápticos (Hito 4.1)', () => {
     });
   });
 });
-
