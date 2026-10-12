@@ -4,11 +4,15 @@ import { getI18nPath } from './Helpers';
 
 describe('Helpers', () => {
   describe('I18n path helper', () => {
-    it('keeps path unchanged when locale is default', () => {
+    it('prefixes path correctly according to routing localePrefix configuration', () => {
       const url = '/random-url';
-      const locale = routing.defaultLocale;
+      const defaultLocale = routing.defaultLocale;
 
-      expect(getI18nPath(url, locale)).toBe(url);
+      if (routing.localePrefix === 'always') {
+        expect(getI18nPath(url, defaultLocale)).toBe(`/${defaultLocale}${url}`);
+      } else {
+        expect(getI18nPath(url, defaultLocale)).toBe(url);
+      }
     });
 
     it('prefixes path with locale when locale is not default', () => {

@@ -2,6 +2,7 @@ import { ClerkProvider } from '@clerk/nextjs';
 import { shadcn } from '@clerk/ui/themes';
 import { setRequestLocale } from 'next-intl/server';
 import { ClerkLocalizations } from '@/utils/AppConfig';
+import { getI18nPath } from '@/utils/Helpers';
 
 export default async function AuthLayout(props: {
   children: React.ReactNode;
@@ -19,10 +20,10 @@ export default async function AuthLayout(props: {
         theme: shadcn,
       }}
       localization={clerkLocale}
-      signInUrl="/sign-in"
-      signUpUrl="/sign-up"
-      signInFallbackRedirectUrl="/dashboard"
-      signUpFallbackRedirectUrl="/dashboard"
+      signInUrl={getI18nPath('/sign-in', locale)}
+      signUpUrl={getI18nPath('/sign-up', locale)}
+      signInFallbackRedirectUrl={getI18nPath('/dashboard', locale)}
+      signUpFallbackRedirectUrl={getI18nPath('/dashboard', locale)}
       afterSignOutUrl="/"
     >
       {props.children}

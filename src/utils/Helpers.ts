@@ -27,7 +27,13 @@ export const getBaseUrl = () => {
  * @returns The localized path, prefixed when the locale is not the default locale.
  */
 export const getI18nPath = (url: string, locale: string) => {
-  if (locale === routing.defaultLocale) {
+  const prefixMode = routing.localePrefix as string | undefined;
+
+  if (prefixMode === 'never') {
+    return url;
+  }
+
+  if (prefixMode === 'as-needed' && locale === routing.defaultLocale) {
     return url;
   }
 
