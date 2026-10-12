@@ -32,6 +32,7 @@ describe('Vistas Multimodales - Helpers de Agrupación y Clasificación (Hito 5.
   describe('Clasificación por Estado Kanban', () => {
     it('extrae el estado del átomo por defecto como pending', () => {
       const mol = createMockMolecule('atom-1');
+
       expect(getAtomStatus(mol.root)).toBe('pending');
     });
 
@@ -64,6 +65,7 @@ describe('Vistas Multimodales - Helpers de Agrupación y Clasificación (Hito 5.
   describe('Agrupación Temporal para Calendario', () => {
     it('formatea fechas clave en formato YYYY-MM-DD', () => {
       const d = new Date(2026, 9, 15); // Octubre 15, 2026
+
       expect(formatDateKey(d)).toBe('2026-10-15');
     });
 
@@ -89,18 +91,21 @@ describe('Vistas Multimodales - Helpers de Agrupación y Clasificación (Hito 5.
 
       // Buscar el día 2026-10-15 en la cuadrícula
       const day15 = days.find(d => d.dateKey === '2026-10-15');
+
       expect(day15).toBeDefined();
       expect(day15?.molecules).toHaveLength(2);
       expect(day15?.isCurrentMonth).toBe(true);
 
       // Buscar el día 2026-10-20
       const day20 = days.find(d => d.dateKey === '2026-10-20');
+
       expect(day20).toBeDefined();
       expect(day20?.molecules).toHaveLength(1);
     });
 
     it('genera etiquetas legibles de mes y año', () => {
       const label = getMonthLabel(2026, 9, 'es-ES');
+
       expect(label.toLowerCase()).toContain('octubre');
       expect(label).toContain('2026');
     });

@@ -1,11 +1,16 @@
 'use client';
 
+import type { ViewMode } from './ViewModeSwitcher';
+import type { KanbanColumnId } from '@/libs/biology/viewHelpers';
 import type { Atom, MolecularProjection } from '@/types/biology';
 import { CheckCircle2, FileText, Inbox, Layers, ListTodo, Plus, RefreshCw, Sparkles } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ContextFilterBar } from './ContextFilterBar';
+import { MolecularCalendarView } from './MolecularCalendarView';
+import { MolecularKanbanBoard } from './MolecularKanbanBoard';
 import { MoleculeCard } from './MoleculeCard';
 import { MoleculeDetailModal } from './MoleculeDetailModal';
+import { ViewModeSwitcher } from './ViewModeSwitcher';
 
 type FeedTab = 'all' | 'inbox' | 'note' | 'task';
 type StatusFilter = 'all' | 'done' | 'pending';
@@ -13,6 +18,7 @@ type StatusFilter = 'all' | 'done' | 'pending';
 export const MolecularFeed: React.FC = () => {
   const [activeTab, setActiveTab] = useState<FeedTab>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [activeFilterAtom, setActiveFilterAtom] = useState<Atom | null>(null);
 
   const [selectedAtomId, setSelectedAtomId] = useState<string | null>(null);
@@ -29,7 +35,9 @@ export const MolecularFeed: React.FC = () => {
     try {
       const params = new URLSearchParams();
       params.set('type', activeTab);
-      params.set('status', statusFilter);
+      // En modo kanban o calendario se requieren todos los estados para poblar columnas y agenda
+      const effectiveStatus = viewMode === 'list' ? statusFilter : 'all';
+      params.set('status', effectiveStatus);
       if (activeFilterAtom?.id) {
         params.set('targetAtomId', activeFilterAtom.id);
       }
@@ -49,7 +57,7 @@ export const MolecularFeed: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [activeTab, statusFilter, activeFilterAtom]);
+  }, [activeTab, statusFilter, viewMode, activeFilterAtom]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -130,6 +138,45 @@ export const MolecularFeed: React.FC = () => {
       });
       if (!res.ok) {
         throw new Error('Error al eliminar');
+      }
+    } catch {
+      setMolecules(backup);
+    }
+  };
+
+  const handleKanbanStatusChange = async (atomId: string, nextStatus: KanbanColumnId) => {
+    const backup = molecules;
+    setMolecules(prev =>
+      prev.map((mol) => {
+        if (mol.root.id === atomId) {
+          const payload = (mol.root.payload ?? {}) as Record<string, unknown>;
+          return {
+            ...mol,
+            root: {
+              ...mol.root,
+              payload: { ...payload, status: nextStatus },
+              updatedAt: new Date(),
+            },
+          };
+        }
+        return mol;
+      }),
+    );
+
+    try {
+      const currentMolecule = molecules.find(m => m.root.id === atomId);
+      const payload = (currentMolecule?.root.payload ?? {}) as Record<string, unknown>;
+
+      const res = await fetch(`/api/v1/atoms/${atomId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payload: { ...payload, status: nextStatus },
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Error al actualizar estado');
       }
     } catch {
       setMolecules(backup);
@@ -260,9 +307,13 @@ export const MolecularFeed: React.FC = () => {
           </button>
         </div>
 
-        {/* Filtro de estado para tareas y botón refrescar */}
-        <div className="flex items-center gap-2">
-          {(activeTab === 'all' || activeTab === 'task') && (
+        {/* Controles a la derecha: Switcher de modo de vista, filtro de estado y refresco */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Selector de modo de vista: Lista, Kanban, Calendario */}
+          <ViewModeSwitcher currentMode={viewMode} onChange={setViewMode} />
+
+          {/* Filtro de estado para tareas (visible en modo lista) */}
+          {viewMode === 'list' && (activeTab === 'all' || activeTab === 'task') && (
             <div className="
               flex items-center gap-1 rounded-lg border bg-card p-0.5 text-xs
               font-medium text-muted-foreground
@@ -361,7 +412,7 @@ export const MolecularFeed: React.FC = () => {
         </div>
       )}
 
-      {/* Lista de Moléculas */}
+      {/* Contenido según el Modo de Vista (Lista, Kanban o Calendario) */}
       {isLoading && molecules.length === 0
         ? (
             <div className="
@@ -373,75 +424,92 @@ export const MolecularFeed: React.FC = () => {
               <p className="mt-2 text-sm">Cargando átomos...</p>
             </div>
           )
-        : molecules.length === 0
+        : viewMode === 'kanban'
           ? (
-              <div className="
-                flex flex-col items-center justify-center rounded-2xl border
-                border-dashed bg-card/40 py-16 text-center
-              "
-              >
-                <div className="
-                  flex size-12 items-center justify-center rounded-2xl
-                  bg-primary/10 text-primary
-                "
-                >
-                  {activeTab === 'task'
-                    ? (
-                        <CheckCircle2 className="size-6" />
-                      )
-                    : (
-                        <Sparkles className="size-6" />
-                      )}
-                </div>
-                <h3 className="mt-3 text-base font-semibold text-foreground">
-                  {activeTab === 'task'
-                    ? statusFilter === 'done'
-                      ? 'No hay tareas completadas todavía'
-                      : 'No tienes tareas pendientes'
-                    : 'No hay elementos en esta vista'}
-                </h3>
-                <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-                  Pulsa
-                  {' '}
-                  <kbd className="
-                    rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs
-                    font-medium
+              <MolecularKanbanBoard
+                molecules={molecules}
+                onStatusChange={handleKanbanStatusChange}
+                onDelete={handleDelete}
+                onFilterByAtom={atom => setActiveFilterAtom(atom)}
+                onOpenDetail={handleOpenDetail}
+              />
+            )
+          : viewMode === 'calendar'
+            ? (
+                <MolecularCalendarView
+                  molecules={molecules}
+                  onOpenDetail={handleOpenDetail}
+                />
+              )
+            : molecules.length === 0
+              ? (
+                  <div className="
+                    flex flex-col items-center justify-center rounded-2xl border
+                    border-dashed bg-card/40 py-16 text-center
                   "
                   >
-                    ⌘K
-                  </kbd>
-                  {' '}
-                  o abre la Omnibarra para capturar un átomo con @entidades, //fechas y #contextos.
-                </p>
-                <button
-                  type="button"
-                  onClick={openOmnibar}
-                  className="
-                    mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary
-                    px-3.5 py-2 text-xs font-semibold text-primary-foreground
-                    shadow-xs transition-colors
-                    hover:bg-primary/90
-                  "
-                >
-                  <Plus className="size-4" />
-                  <span>Capturar nuevo átomo</span>
-                </button>
-              </div>
-            )
-          : (
-              <div className="flex flex-col gap-2.5">
-                {molecules.map(molecule => (
-                  <MoleculeCard
-                    key={molecule.root.id}
-                    molecule={molecule}
-                    onToggleStatus={handleToggleStatus}
-                    onDelete={handleDelete}
-                    onFilterByAtom={atom => setActiveFilterAtom(atom)}
-                    onOpenDetail={handleOpenDetail}
-                  />
-                ))}
-              </div>
-            )}
+                    <div className="
+                      flex size-12 items-center justify-center rounded-2xl
+                      bg-primary/10 text-primary
+                    "
+                    >
+                      {activeTab === 'task'
+                        ? (
+                            <CheckCircle2 className="size-6" />
+                          )
+                        : (
+                            <Sparkles className="size-6" />
+                          )}
+                    </div>
+                    <h3 className="mt-3 text-base font-semibold text-foreground">
+                      {activeTab === 'task'
+                        ? statusFilter === 'done'
+                          ? 'No hay tareas completadas todavía'
+                          : 'No tienes tareas pendientes'
+                        : 'No hay elementos en esta vista'}
+                    </h3>
+                    <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+                      Pulsa
+                      {' '}
+                      <kbd className="
+                        rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs
+                        font-medium
+                      "
+                      >
+                        ⌘K
+                      </kbd>
+                      {' '}
+                      o abre la Omnibarra para capturar un átomo con @entidades, //fechas y #contextos.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={openOmnibar}
+                      className="
+                        mt-4 inline-flex items-center gap-1.5 rounded-lg
+                        bg-primary px-3.5 py-2 text-xs font-semibold
+                        text-primary-foreground shadow-xs transition-colors
+                        hover:bg-primary/90
+                      "
+                    >
+                      <Plus className="size-4" />
+                      <span>Capturar nuevo átomo</span>
+                    </button>
+                  </div>
+                )
+              : (
+                  <div className="flex flex-col gap-2.5">
+                    {molecules.map(molecule => (
+                      <MoleculeCard
+                        key={molecule.root.id}
+                        molecule={molecule}
+                        onToggleStatus={handleToggleStatus}
+                        onDelete={handleDelete}
+                        onFilterByAtom={atom => setActiveFilterAtom(atom)}
+                        onOpenDetail={handleOpenDetail}
+                      />
+                    ))}
+                  </div>
+                )}
 
       {/* Modal de Detalle Molecular y Navegación del Grafo */}
       <MoleculeDetailModal
