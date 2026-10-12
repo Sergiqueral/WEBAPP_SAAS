@@ -24,6 +24,12 @@ export default async function proxy(
   request: NextRequest,
   event: NextFetchEvent,
 ) {
+  if (request.nextUrl.pathname.startsWith('/api')) {
+    return clerkMiddleware(async () => {
+      return NextResponse.next();
+    })(request, event);
+  }
+
   // Clerk keyless mode doesn't work with i18n, this is why we need to run the middleware conditionally
   if (
     isAuthPage(request) || isProtectedRoute(request)
@@ -68,7 +74,7 @@ export default async function proxy(
 
 export const config = {
   // Match all pathnames except for
-  // - … if they start with `/_next`, `/_vercel`, `monitoring` or `api`
+  // - … if they start with `/_next`, `/_vercel` or `monitoring`
   // - … the ones containing a dot (e.g. `favicon.ico`)
-  matcher: '/((?!_next|_vercel|monitoring|api|.*\\..*).*)',
+  matcher: '/((?!_next|_vercel|monitoring|.*\\..*).*)',
 };
