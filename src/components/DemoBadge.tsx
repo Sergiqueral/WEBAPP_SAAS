@@ -1,15 +1,12 @@
 export const DemoBadge = () => (
   <div className="fixed right-20 bottom-0 z-10">
-    <a
-      href="https://nextjs-boilerplate.com/pro-saas-starter-kit"
+    <div className="
+      rounded-t-md border border-b-0 border-zinc-700 bg-zinc-900/90 px-3 py-1.5
+      text-xs font-medium text-zinc-300 shadow-md backdrop-blur-xs
+    "
     >
-      <div className="
-        rounded-md bg-gray-900 px-3 py-2 font-semibold text-gray-100
-      "
-      >
-        <span className="text-gray-500">Demo of</span>
-        {' SaaS Boilerplate'}
-      </div>
-    </a>
+      <span className="mr-1.5 font-semibold text-emerald-400">● Alpha</span>
+      Gorila v0.1 (Tester)
+    </div>
   </div>
 );

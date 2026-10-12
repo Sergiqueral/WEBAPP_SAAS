@@ -1,7 +1,6 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { PageMessage } from '@/features/dashboard/PageMessage';
 import { TitleBar } from '@/features/dashboard/TitleBar';
-import { SponsorLogos } from '@/features/sponsors/SponsorLogos';
 import { CodexDashboardView, CodexOmnibarModal, CodexOmnibarTrigger } from '@/modules/codex';
 
 export default async function DashboardIndexPage(props: {
@@ -70,39 +69,14 @@ export default async function DashboardIndexPage(props: {
                 text-muted-foreground
               "
               >
-                {t.rich('message_state_alternative', {
-                  url: () => (
-                    <a
-                      className="
-                        text-blue-500
-                        hover:text-blue-600
-                      "
-                      href="https://nextjs-boilerplate.com/pro-saas-starter-kit"
-                    >
-                      Next.js Boilerplate SaaS
-                    </a>
-                  ),
-                })}
-
-                <p>
-                  {t.rich('max_message', {
-                    url: () => (
-                      <a
-                        className="
-                          text-blue-500
-                          hover:text-blue-600
-                        "
-                        href="https://nextjs-boilerplate.com/nextjs-saas-starter-kit"
-                      >
-                        Next.js Boilerplate Plus
-                      </a>
-                    ),
-                  })}
+                <p>{t('message_state_alternative')}</p>
+                <p className="
+                  mt-2 font-medium text-amber-600
+                  dark:text-amber-400
+                "
+                >
+                  {t('max_message')}
                 </p>
-              </div>
-
-              <div className="mt-7">
-                <SponsorLogos />
               </div>
             </>
           )}

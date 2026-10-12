@@ -3,8 +3,8 @@ import { Link } from '@/libs/I18nNavigation';
 
 export const DemoBanner = () => (
   <StickyBanner>
-    Live Demo of SaaS Boilerplate -
+    🧪 Entorno de Pruebas Alpha (Base de datos volátil · Duración 1 mes) -
     {' '}
-    <Link href="/sign-up">Explore the User Dashboard</Link>
+    <Link href="/sign-up">Acceder a la Evaluación</Link>
   </StickyBanner>
 );

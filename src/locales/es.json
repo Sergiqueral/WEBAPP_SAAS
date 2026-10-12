@@ -1,0 +1,122 @@
+{
+  "Index": {
+    "meta_title": "Gorila · Entorno de Pruebas Alpha (Tester Beta)",
+    "meta_description": "Plataforma de gestión de conocimiento biológico y molecular. Entorno de pruebas temporales para validación y tests de carga."
+  },
+  "Navbar": {
+    "sign_in": "Iniciar sesión",
+    "sign_up": "Crear cuenta tester",
+    "product": "Cómo funciona",
+    "pricing": "Modo Prueba",
+    "docs": "Guía de Sintaxis",
+    "blog": "Novedades MVP",
+    "about": "Acerca de la Alpha"
+  },
+  "LocaleSwitcher": {
+    "button_label": "Cambiar idioma"
+  },
+  "Hero": {
+    "follow_twitter": "Versión Alpha v0.1 · Acceso Tester",
+    "title": "Tu segundo cerebro <important>biológico y molecular</important> para organizar ideas complejas.",
+    "description": "Bienvenido a la versión de evaluación para amigos y testers. Explora la Omnibarra, conecta partículas con sinapsis y organiza tus proyectos en células de progreso reactivas.",
+    "primary_button": "Entrar a la Prueba de Estrés",
+    "secondary_button": "Guía de Inicio Rápido"
+  },
+  "Features": {
+    "section_subtitle": "Capacidades del MVP",
+    "section_title": "Prueba el Motor Molecular en Tiempo Real",
+    "section_description": "Diseñado para testear la respuesta sub-milisegundo de PostgreSQL y la ergonomía táctil en teléfonos y tablets.",
+    "feature1_title": "Omnibarra Natural (⌘K)",
+    "feature2_title": "Grafo de Sinapsis",
+    "feature3_title": "Células de Proyecto (#)",
+    "feature4_title": "Tablero Kanban Reactivo",
+    "feature5_title": "Ergonomía Móvil (FAB)",
+    "feature6_title": "Motor PostgreSQL Sub-ms",
+    "feature_description": "Interactúa con las partículas en tiempo real. Todas las acciones se registran con índices optimizados en Cloud SQL."
+  },
+  "Pricing": {
+    "section_subtitle": "Entorno de Evaluación",
+    "section_title": "Acceso Tester para Amigos",
+    "section_description": "⚠️ Aviso importante: Este servidor es un banco de pruebas de estrés. La base de datos es temporal y los datos se resetearán tras 1 mes.",
+    "button_text": "Empezar a Testear"
+  },
+  "PricingPlans": {
+    "free_plan_name": "Tester Amigo",
+    "premium_plan_name": "Test de Carga",
+    "enterprise_plan_name": "Feedback Directo"
+  },
+  "PricingCard": {
+    "free_plan_description": "Acceso completo e ilimitado para pruebas",
+    "premium_plan_description": "Para crear cientos de átomos y sinapsis",
+    "enterprise_plan_description": "Canal abierto para sugerencias y mejoras",
+    "plan_price": "0€",
+    "plan_interval_month": " (Acceso Alpha)",
+    "plan_interval_year": " (Temporal 1 mes)"
+  },
+  "PricingFeatures": {
+    "feature_team_member": "Sinapsis con menciones (@)",
+    "feature_website": "Agrupación en células (#)",
+    "feature_storage": "Pruebas de estrés y volumen",
+    "feature_transfer": "Respuesta sub-milisegundo (< 1ms)",
+    "feature_email_support": "Canal directo con el creador"
+  },
+  "SponsorLogos": {
+    "sponsored_by": "Stack Tecnológico del MVP",
+    "clerk_logo": "Clerk Auth",
+    "sentry_logo": "PostgreSQL Cloud",
+    "crowdin_logo": "Turbopack",
+    "arcjet_logo": "Docker & Nginx",
+    "coderabbit_logo": "Next.js 16",
+    "nextjs_boilerplate_logo": "Gorila Core"
+  },
+  "FAQ": {
+    "question": "¿Qué ocurre con los datos que introduzca durante este mes de test?",
+    "answer": "Esta instancia es un banco de pruebas de carga, rendimiento y ergonomía. No introduzcas información confidencial ni definitiva, ya que la base de datos se reseteará al cumplirse el periodo de pruebas de 1 mes."
+  },
+  "CTA": {
+    "title": "¿Listo para poner a prueba el sistema?",
+    "description": "Crea tu cuenta, prueba la Omnibarra en tu ordenador o en tu móvil y cuéntanos qué tal responde la velocidad.",
+    "button_text": "Acceder al Panel de Control"
+  },
+  "Footer": {
+    "product": "Omnibarra",
+    "docs": "Células",
+    "blog": "Kanban",
+    "community": "Comunidad Alpha",
+    "company": "Gorila SaaS",
+    "terms_of_service": "Aviso Tester (Datos Volátiles)",
+    "privacy_policy": "Política de Pruebas",
+    "footer_text": "© {year} {name} · Versión Alpha para Amigos y Testers. Datos temporales."
+  },
+  "SignIn": {
+    "meta_title": "Iniciar Sesión · Gorila Tester",
+    "meta_description": "Accede a tu cuenta de pruebas en el entorno de evaluación de Gorila."
+  },
+  "SignUp": {
+    "meta_title": "Registro Tester · Gorila",
+    "meta_description": "Crea tu usuario tester y empieza a explorar la gestión biológica de tareas e ideas."
+  },
+  "DashboardLayout": {
+    "meta_title": "Panel de Pruebas · Gorila MVP",
+    "meta_description": "Dashboard reactivo molecular con captura rápida, células de progreso y grafo sináptico.",
+    "home": "Inicio / Feed",
+    "members": "Colaboradores",
+    "settings": "Configuración"
+  },
+  "DashboardIndexPage": {
+    "title_bar": "Panel Molecular (Alpha Tester)",
+    "title_bar_description": "Entorno de evaluación activa: crea tareas, enlaza contextos y prueba el rendimiento en tu móvil.",
+    "message_state_title": "Guía Rápida para Amigos Testers 🧪",
+    "message_state_description": "Presiona <code>⌘K</code> (o <code>Ctrl+K</code>) o pulsa el botón flotante <code>+</code> en el móvil para abrir la Omnibarra. Usa <code>//</code> para tareas, <code>@</code> para personas y <code>#</code> para agrupar en proyectos.",
+    "message_state_alternative": "💡 Al hacer clic sobre cualquier contexto (#marketing, #lanzamiento), se activará la Célula Biológica mostrando la barra de progreso de sus tareas en tiempo real.",
+    "max_message": "⚠️ Recuerda: Esta base de datos es temporal para pruebas de estrés y se reiniciará en 1 mes. ¡Déjanos tus impresiones!"
+  },
+  "UserProfilePage": {
+    "title_bar": "Perfil de Usuario",
+    "title_bar_description": "Gestiona tu sesión de usuario tester y preferencias."
+  },
+  "OrganizationProfilePage": {
+    "title_bar": "Equipo / Espacio de Trabajo",
+    "title_bar_description": "Gestiona los miembros de tu organización de pruebas."
+  }
+}
