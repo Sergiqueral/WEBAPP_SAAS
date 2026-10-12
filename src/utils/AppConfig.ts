@@ -34,14 +34,22 @@ export const AppConfig = {
   },
 } as const;
 
+const customEsES: LocalizationResource = {
+  ...esES,
+  unstable__errors: {
+    ...esES.unstable__errors,
+    form_password_pwned: 'Por favor, elige una contraseña diferente y más segura para proteger tu cuenta.',
+  },
+};
+
 const supportedLocales: Record<string, LocalizationResource> = {
-  es: esES,
+  es: customEsES,
   en: enUS,
   fr: frFR,
 };
 
 export const ClerkLocalizations = {
-  defaultLocale: esES,
+  defaultLocale: customEsES,
   supportedLocales,
 };
 
