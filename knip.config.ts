@@ -13,7 +13,7 @@ const config: KnipConfig = {
     '@clerk/shared',
     '@swc/helpers', // Avoid error in CI: "`npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync."
   ],
-  entry: ['src/modules/codex/index.ts!'],
+  entry: ['src/modules/codex/index.ts!', 'src/modules/licensing/index.ts!'],
   // Include custom Playwright test file suffixes
   playwright: {
     entry: ['tests/**/*.@(integ|e2e).ts'],

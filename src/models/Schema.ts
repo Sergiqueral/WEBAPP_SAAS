@@ -27,3 +27,6 @@ export const todoSchema = pgTable('todo', {
 
 // Módulo Codex - Biología del Dato (Cero invasión)
 export * from '@/modules/codex/db/schema';
+
+// Módulo Licensing - Capacidades y Licencias (Cero invasión)
+export * from '@/modules/licensing/db/schema';
