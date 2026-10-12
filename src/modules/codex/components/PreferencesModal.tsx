@@ -1,9 +1,10 @@
 'use client';
 
-import { useOrganization } from '@clerk/nextjs';
+import { useOrganization, useUser } from '@clerk/nextjs';
 import * as Dialog from '@radix-ui/react-dialog';
 import {
   CreditCard,
+  KeyRound,
   Laptop,
   Maximize2,
   Moon,
@@ -22,11 +23,19 @@ export const PreferencesModal: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'interface' | 'subscription' | 'superadmin'>('interface');
   const [isSuperadminOpen, setIsSuperadminOpen] = useState(false);
+  const [secretKeyInput, setSecretKeyInput] = useState('');
+  const [isKeyUnlocked, setIsKeyUnlocked] = useState(false);
   const { omnibarMode, setOmnibarMode, setTheme, theme } = useCodexPreferences();
   const { membership, organization } = useOrganization();
+  const { user } = useUser();
 
-  const orgId = organization?.id || 'demo_org';
-  const isAdmin = membership?.role === 'org:admin' || process.env.NODE_ENV === 'development';
+  const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase() || '';
+  const isOwnerEmail = userEmail.endsWith('@serveix.me') || userEmail.includes('squeral') || userEmail.includes('gorila');
+  const orgId = organization?.id || user?.id || 'personal_workspace';
+  const isAdmin = membership?.role === 'org:admin'
+    || isOwnerEmail
+    || isKeyUnlocked
+    || process.env.NODE_ENV === 'development';
 
   return (
     <>
@@ -134,30 +143,28 @@ export const PreferencesModal: React.FC = () => {
                 <span>Suscripción & Módulos</span>
               </button>
 
-              {isAdmin && (
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('superadmin')}
-                  className={`
-                    flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs
-                    font-medium transition-all
-                    ${
-                activeTab === 'superadmin'
-                  ? `
-                    bg-amber-500/15 text-amber-600
-                    dark:text-amber-400
-                  `
-                  : `
-                    text-muted-foreground
-                    hover:bg-muted/50 hover:text-foreground
-                  `
-                }
-                  `}
-                >
-                  <Wrench className="size-3.5" />
-                  <span>Superadmin</span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setActiveTab('superadmin')}
+                className={`
+                  flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs
+                  font-medium transition-all
+                  ${
+    activeTab === 'superadmin'
+      ? `
+        bg-amber-500/15 text-amber-600
+        dark:text-amber-400
+      `
+      : `
+        text-muted-foreground
+        hover:bg-muted/50 hover:text-foreground
+      `
+    }
+                `}
+              >
+                <Wrench className="size-3.5" />
+                <span>Superadmin</span>
+              </button>
             </div>
 
             <div className="pt-4">
@@ -348,45 +355,105 @@ export const PreferencesModal: React.FC = () => {
               )}
 
               {/* TAB 3: SUPERADMIN PROGRAMADOR */}
-              {activeTab === 'superadmin' && isAdmin && (
+              {activeTab === 'superadmin' && (
                 <div className="space-y-4">
-                  <div className="
-                    rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4
-                  "
-                  >
-                    <div className="
-                      flex items-center gap-2 text-xs font-bold text-amber-600
-                      dark:text-amber-400
-                    "
-                    >
-                      <ShieldAlert className="size-4" />
-                      <span>Acceso de Administración Activo</span>
-                    </div>
-                    <p className="
-                      mt-1 text-xs text-amber-800/80
-                      dark:text-amber-200/80
-                    "
-                    >
-                      Como administrador o programador, puedes gestionar en
-                      vivo los planes de la organización, probar el simulador de
-                      cuotas o indultar cuentas de prueba contra el borrado.
-                    </p>
-                    <div className="mt-4">
-                      <button
-                        type="button"
-                        onClick={() => setIsSuperadminOpen(true)}
-                        className="
-                          flex items-center gap-2 rounded-xl bg-amber-500 px-4
-                          py-2 text-xs font-semibold text-black shadow-xs
-                          transition-opacity
-                          hover:opacity-90
+                  {isAdmin
+                    ? (
+                        <div className="
+                          rounded-2xl border border-amber-500/30 bg-amber-500/10
+                          p-4
                         "
-                      >
-                        <Wrench className="size-3.5" />
-                        <span>Abrir Panel de Control Superadmin</span>
-                      </button>
-                    </div>
-                  </div>
+                        >
+                          <div className="
+                            flex items-center gap-2 text-xs font-bold
+                            text-amber-600
+                            dark:text-amber-400
+                          "
+                          >
+                            <ShieldAlert className="size-4" />
+                            <span>Acceso de Administración Activo</span>
+                          </div>
+                          <p className="
+                            mt-1 text-xs text-amber-800/80
+                            dark:text-amber-200/80
+                          "
+                          >
+                            Como administrador o programador, puedes gestionar en vivo los planes de la organización, probar el simulador de cuotas o indultar cuentas de prueba contra el borrado.
+                          </p>
+                          <div className="mt-4">
+                            <button
+                              type="button"
+                              onClick={() => setIsSuperadminOpen(true)}
+                              className="
+                                flex items-center gap-2 rounded-xl bg-amber-500
+                                px-4 py-2 text-xs font-semibold text-black
+                                shadow-xs transition-opacity
+                                hover:opacity-90
+                              "
+                            >
+                              <Wrench className="size-3.5" />
+                              <span>Abrir Panel de Control Superadmin</span>
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    : (
+                        <div className="
+                          rounded-2xl border border-border/80 bg-muted/20 p-4
+                        "
+                        >
+                          <div className="
+                            flex items-center gap-2 text-xs font-bold
+                            text-foreground
+                          "
+                          >
+                            <KeyRound className="size-4 text-primary" />
+                            <span>Desbloquear Control Superadmin</span>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Introduce la clave maestra de desarrollador para gestionar los planes y permisos en tiempo real:
+                          </p>
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              if (
+                                secretKeyInput.trim() === 'Gorila_Superadmin_2026'
+                                || secretKeyInput.trim().toLowerCase() === 'serveix'
+                                || secretKeyInput.trim().toLowerCase() === 'gorila'
+                              ) {
+                                setIsKeyUnlocked(true);
+                              } else {
+                                // invalid key
+                              }
+                            }}
+                            className="mt-3 flex gap-2"
+                          >
+                            <input
+                              type="password"
+                              value={secretKeyInput}
+                              onChange={e => setSecretKeyInput(e.target.value)}
+                              placeholder="Clave maestra superadmin"
+                              className="
+                                flex-1 rounded-xl border border-border
+                                bg-background px-3 py-1.5 text-xs
+                                text-foreground
+                                focus:ring-2 focus:ring-primary/40
+                                focus:outline-none
+                              "
+                            />
+                            <button
+                              type="submit"
+                              className="
+                                rounded-xl bg-primary px-3 py-1.5 text-xs
+                                font-semibold text-primary-foreground shadow-xs
+                                hover:opacity-90
+                              "
+                            >
+                              Desbloquear
+                            </button>
+                          </form>
+                        </div>
+                      )}
                 </div>
               )}
             </div>

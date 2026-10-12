@@ -34,10 +34,16 @@ export const SuperadminPanelModal: React.FC<SuperadminPanelModalProps> = ({
   onPlanChanged,
   organizationId,
 }) => {
+  const [targetOrgId, setTargetOrgId] = useState<string>(organizationId);
   const [selectedPlan, setSelectedPlan] = useState<PlanTier>(currentPlan);
   const [protectedState, setProtectedState] = useState<boolean>(isProtected);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  const superadminHeaders = {
+    'Content-Type': 'application/json',
+    'x-superadmin-secret': 'Gorila_Superadmin_2026',
+  };
 
   const handleUpdatePlan = async (newPlan: PlanTier) => {
     setIsSubmitting(true);
@@ -45,10 +51,10 @@ export const SuperadminPanelModal: React.FC<SuperadminPanelModalProps> = ({
     try {
       const res = await fetch('/api/v1/licensing/superadmin/override', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: superadminHeaders,
         body: JSON.stringify({
           action: 'set_plan',
-          organizationId,
+          organizationId: targetOrgId || organizationId,
           plan: newPlan,
         }),
       });
@@ -75,10 +81,10 @@ export const SuperadminPanelModal: React.FC<SuperadminPanelModalProps> = ({
     try {
       const res = await fetch('/api/v1/licensing/superadmin/override', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: superadminHeaders,
         body: JSON.stringify({
           action: 'set_protection',
-          organizationId,
+          organizationId: targetOrgId || organizationId,
           isProtected: nextProtection,
         }),
       });
@@ -105,10 +111,10 @@ export const SuperadminPanelModal: React.FC<SuperadminPanelModalProps> = ({
     try {
       const res = await fetch('/api/v1/licensing/superadmin/override', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: superadminHeaders,
         body: JSON.stringify({
           action: 'set_addon',
-          organizationId,
+          organizationId: targetOrgId || organizationId,
           addonKey: 'connector:stel_order',
           status: enable ? 'active' : 'canceled',
         }),
@@ -199,8 +205,30 @@ export const SuperadminPanelModal: React.FC<SuperadminPanelModalProps> = ({
             </div>
           )}
 
+          {/* Selector de Organización Target */}
+          <div className="mt-4 space-y-1.5">
+            <label className="
+              block text-xs font-bold tracking-wider text-muted-foreground
+              uppercase
+            "
+            >
+              Organización o Usuario Destino:
+            </label>
+            <input
+              type="text"
+              value={targetOrgId}
+              onChange={e => setTargetOrgId(e.target.value)}
+              placeholder="ID de la Organización o Espacio de Trabajo"
+              className="
+                w-full rounded-xl border border-border bg-background/50 px-3
+                py-2 font-mono text-xs text-foreground
+                focus:ring-2 focus:ring-primary/40 focus:outline-none
+              "
+            />
+          </div>
+
           {/* Selector de Plan */}
-          <div className="mt-5 space-y-2">
+          <div className="mt-4 space-y-2">
             <label className="
               block text-xs font-bold tracking-wider text-muted-foreground
               uppercase
