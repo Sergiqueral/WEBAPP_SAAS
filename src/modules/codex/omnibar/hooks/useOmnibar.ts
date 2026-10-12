@@ -9,12 +9,19 @@ export type UseOmnibarOptions = {
   knownContexts?: Array<{ id: string; name: string }>;
   onSuccess?: (molecule: MolecularProjection) => void;
   onError?: (error: Error) => void;
+  alwaysActive?: boolean;
 };
 
 export function useOmnibar(options: UseOmnibarOptions = {}) {
-  const { knownContexts = [], knownEntities = [], onError, onSuccess } = options;
+  const {
+    alwaysActive = false,
+    knownContexts = [],
+    knownEntities = [],
+    onError,
+    onSuccess,
+  } = options;
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(alwaysActive);
   const [rawText, setRawText] = useState('');
   const [cursorPosition, setCursorPosition] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,10 +49,10 @@ export function useOmnibar(options: UseOmnibarOptions = {}) {
   }, []);
 
   useEffect(() => {
-    if (isOpen && knownEntities.length === 0 && knownContexts.length === 0) {
+    if ((isOpen || alwaysActive) && knownEntities.length === 0 && knownContexts.length === 0) {
       void refreshSuggestions();
     }
-  }, [isOpen, knownEntities.length, knownContexts.length, refreshSuggestions]);
+  }, [isOpen, alwaysActive, knownEntities.length, knownContexts.length, refreshSuggestions]);
 
   const effectiveEntities = knownEntities.length > 0 ? knownEntities : fetchedEntities;
   const effectiveContexts = knownContexts.length > 0 ? knownContexts : fetchedContexts;
@@ -57,7 +64,7 @@ export function useOmnibar(options: UseOmnibarOptions = {}) {
 
   // Detección del contexto activo para el autocompletado (@ o #)
   const activeTrigger = useMemo(() => {
-    if (!isOpen) {
+    if (!isOpen && !alwaysActive) {
       return null;
     }
 

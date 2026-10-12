@@ -15,7 +15,10 @@ import {
   Sparkles,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { PreferencesModal } from '../../components/PreferencesModal';
 import { calculateCellMetrics } from '../../domain/cell/cellMetrics';
+import { useCodexPreferences } from '../../domain/preferences/useCodexPreferences';
+import { InlineOmnibar } from '../../omnibar/ui/InlineOmnibar';
 import { MobileFloatingActionButton } from '../../omnibar/ui/MobileFloatingActionButton';
 import { MolecularCalendarView } from '../calendar/MolecularCalendarView';
 import { CellHeader } from '../cell/CellHeader';
@@ -29,6 +32,7 @@ type FeedTab = 'all' | 'inbox' | 'note' | 'task';
 type StatusFilter = 'all' | 'done' | 'pending';
 
 export const MolecularFeed: React.FC = () => {
+  const { omnibarMode } = useCodexPreferences();
   const [activeTab, setActiveTab] = useState<FeedTab>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -256,6 +260,16 @@ export const MolecularFeed: React.FC = () => {
 
   return (
     <div className="w-full space-y-4">
+      {/* Omnibarra Fija e Intuitiva (según preferencia del usuario) */}
+      {omnibarMode === 'fixed' && (
+        <InlineOmnibar
+          className="sticky top-2 z-30 border-primary/20 shadow-md"
+          onSuccess={(mol) => {
+            setMolecules(prev => [mol, ...prev.filter(m => m.root.id !== mol.root.id)]);
+          }}
+        />
+      )}
+
       {/* Barra superior de pestañas y controles */}
       <div className="
         flex flex-col gap-3
@@ -424,6 +438,9 @@ export const MolecularFeed: React.FC = () => {
             `}
             />
           </button>
+
+          {/* Ajustes de interfaz y Omnibarra */}
+          <PreferencesModal />
         </div>
       </div>
 

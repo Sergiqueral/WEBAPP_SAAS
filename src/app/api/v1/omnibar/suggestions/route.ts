@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 import { and, eq, inArray } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { db } from '@/libs/DB';
@@ -31,7 +31,8 @@ export async function GET(request: Request) {
     // Tipos biológicos de contextos
     const contextTypes = ['context', 'tag', 'project', 'topic', 'area'];
 
-    const [rawEntities, rawContexts] = await Promise.all([
+    // Consultas concurrentes: átomos locales en DB y miembros de la organización en Clerk
+    const [rawEntities, rawContexts, orgMemberships] = await Promise.all([
       db.query.atomsSchema.findMany({
         where: and(
           eq(atomsSchema.organizationId, tenantContext.organizationId),
@@ -46,12 +47,57 @@ export async function GET(request: Request) {
         ),
         limit: 100,
       }),
+      (async () => {
+        if (!clerkOrgId) {
+          return [];
+        }
+        try {
+          const client = await clerkClient();
+          const res = await client.organizations.getOrganizationMembershipList({
+            organizationId: clerkOrgId,
+            limit: 50,
+          });
+          return res.data;
+        } catch {
+          return [];
+        }
+      })(),
     ]);
 
-    const entities = rawEntities.map(atom => ({
-      id: atom.id,
-      name: String(atom.payload.name ?? atom.payload.title ?? 'Sin nombre'),
-    }));
+    // Combinar miembros de Clerk con entidades existentes sin duplicados
+    const seenNames = new Set<string>();
+    const entities: Array<{ id: string; name: string }> = [];
+
+    // Priorizar miembros activos del equipo
+    for (const membership of orgMemberships) {
+      const u = membership.publicUserData;
+      const fullName = [u?.firstName, u?.lastName].filter(Boolean).join(' ').trim();
+      const identifier = u?.identifier?.split('@')[0] ?? '';
+      const name = fullName || identifier || 'Miembro';
+      const lower = name.toLowerCase();
+
+      if (!seenNames.has(lower)) {
+        seenNames.add(lower);
+        entities.push({
+          id: `clerk-member-${u?.userId ?? membership.id}`,
+          name,
+        });
+      }
+    }
+
+    // Agregar entidades guardadas en la base de datos
+    for (const atom of rawEntities) {
+      const name = String(atom.payload.name ?? atom.payload.title ?? 'Sin nombre');
+      const lower = name.toLowerCase();
+
+      if (!seenNames.has(lower)) {
+        seenNames.add(lower);
+        entities.push({
+          id: atom.id,
+          name,
+        });
+      }
+    }
 
     const contexts = rawContexts.map(atom => ({
       id: atom.id,
