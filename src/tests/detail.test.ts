@@ -133,5 +133,76 @@ describe('Detalle Molecular y Enlaces Sinápticos (Hito 4.1)', () => {
       expect(sampleMolecule.outgoing[0]?.relationType).toBe('ASSIGNED_TO');
       expect(sampleMolecule.incoming[0]?.relationType).toBe('DEPENDS_ON');
     });
+
+    it('gestiona la pila de navegación del grafo (hops) con avance y retroceso', () => {
+      const rootAtomId = 'atom-task-1';
+      let subHistory: string[] = [];
+
+      const getCurrentId = () =>
+        subHistory.length > 0 ? subHistory[subHistory.length - 1]! : rootAtomId;
+
+      // Estado inicial en el átomo raíz
+      expect(getCurrentId()).toBe('atom-task-1');
+      expect(subHistory.length + 1).toBe(1);
+
+      // Hop 1: Saltar hacia el cliente conectado (@Juan Fontanería)
+      subHistory = [...subHistory, 'atom-client-1'];
+      expect(getCurrentId()).toBe('atom-client-1');
+      expect(subHistory.length + 1).toBe(2);
+
+      // Hop 2: Saltar hacia el proyecto (#Reforma-Cocina)
+      subHistory = [...subHistory, 'atom-project-1'];
+      expect(getCurrentId()).toBe('atom-project-1');
+      expect(subHistory.length + 1).toBe(3);
+
+      // Back 1: Retroceder al cliente
+      subHistory = subHistory.slice(0, -1);
+      expect(getCurrentId()).toBe('atom-client-1');
+      expect(subHistory.length + 1).toBe(2);
+
+      // Back 2: Retroceder al átomo original
+      subHistory = subHistory.slice(0, -1);
+      expect(getCurrentId()).toBe('atom-task-1');
+      expect(subHistory.length + 1).toBe(1);
+    });
+
+    it('proyecta sinapsis entrantes permitiendo que un cliente actúe como centro de gravedad (CRM)', () => {
+      // Un átomo de tipo cliente que recibe tareas y notas entrantes
+      const clientMolecule = {
+        root: {
+          id: 'atom-client-vip',
+          type: 'client',
+          payload: { name: 'Acme Corp' },
+          metadata: { provenance: 'omnibar' },
+        },
+        outgoing: [], // El cliente no apunta a nada
+        incoming: [
+          {
+            linkId: 'link-task-1',
+            relationType: 'ASSIGNED_TO',
+            atom: {
+              id: 'atom-task-urgent',
+              type: 'task',
+              payload: { title: 'Enviar propuesta comercial' },
+            },
+          },
+          {
+            linkId: 'link-note-1',
+            relationType: 'RELATED_TO',
+            atom: {
+              id: 'atom-note-meeting',
+              type: 'note',
+              payload: { title: 'Notas de reunión de kickoff' },
+            },
+          },
+        ],
+      };
+
+      // Debe recopilar 2 elementos que gravitan hacia Acme Corp
+      expect(clientMolecule.incoming).toHaveLength(2);
+      expect(clientMolecule.incoming.map(i => i.atom.type)).toEqual(['task', 'note']);
+      expect(clientMolecule.incoming.map(i => i.relationType)).toEqual(['ASSIGNED_TO', 'RELATED_TO']);
+    });
   });
 });
+
