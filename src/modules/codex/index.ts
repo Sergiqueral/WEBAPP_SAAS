@@ -6,6 +6,7 @@
  */
 
 // UI Components
+export { OnboardingWizard as CodexOnboardingWizard, OnboardingWizard } from './components/OnboardingWizard';
 export { PreferencesModal as CodexPreferencesModal, PreferencesModal } from './components/PreferencesModal';
 // Database Schema
 export * from './db/schema';

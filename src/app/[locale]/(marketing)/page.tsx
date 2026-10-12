@@ -6,6 +6,7 @@ import { FAQ } from '@/templates/FAQ';
 import { Features } from '@/templates/Features';
 import { Footer } from '@/templates/Footer';
 import { Hero } from '@/templates/Hero';
+import { Instructions } from '@/templates/Instructions';
 import { Navbar } from '@/templates/Navbar';
 import { Pricing } from '@/templates/Pricing';
 import { Sponsors } from '@/templates/Sponsors';
@@ -38,6 +39,7 @@ export default async function Index(props: IndexProps) {
       <Hero />
       <Sponsors />
       <Features />
+      <Instructions />
       <Pricing />
       <FAQ />
       <CTA />

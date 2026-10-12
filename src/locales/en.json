@@ -70,8 +70,38 @@
     "nextjs_boilerplate_logo": "Gorila Core"
   },
   "FAQ": {
-    "question": "What happens to the data I enter during this month?",
-    "answer": "This server is a stress-testing and ergonomics sandbox. Do not store confidential or permanent data, as the database will be fully purged after the 1-month test period."
+    "section_subtitle": "Got Questions?",
+    "section_title": "Frequently Asked Questions",
+    "section_description": "Everything you need to know about the current Alpha test, free accounts, and future licensing tiers.",
+    "q1": "What does the current free Alpha Tester tier include?",
+    "a1": "During the evaluation phase with friends and testers, all accounts and organizations receive the Alpha Tester tier with 100% unrestricted access to the Omnibar, Google sync, and project cells at no cost.",
+    "q2": "How does the free tier and the 30-day trial for collaborators work?",
+    "a2": "Creating an account and your first organization is completely free forever for 1 user. When inviting the first guest to your team, a 30-day free trial is activated. Beyond that trial, additional team seats require a subscription.",
+    "q3": "What is the difference between Google Sync read-only and edit mode?",
+    "a3": "Read-only access (viewing your calendar events and tasks in the feed) is included for free. Two-way editing and event creation from the Omnibar is part of the Professional tier.",
+    "q4": "How are external connectors like STEL Order ERP integrated?",
+    "a4": "Connectors to third-party billing and ERP systems are managed as independent monthly add-ons, allowing you to pay only for the integrations you need.",
+    "q5": "What happens if an organization becomes inactive (zombie accounts)?",
+    "a5": "To protect infrastructure and comply with GDPR, organizations inactive for over 60 days become dormant; at 90 days external tokens are revoked, and after 180 days they are scheduled for deletion. Alpha tester accounts are protected from deletion.",
+    "q6": "Can I manage multiple organizations with one account?",
+    "a6": "Yes, you can be a member of multiple organizations. However, a single user can only own 1 free organization at a time; owning more requires a paid plan."
+  },
+  "Instructions": {
+    "section_subtitle": "Usage Instructions & Tips",
+    "section_title": "Master Your Molecular Workflow",
+    "section_description": "Capture ideas in milliseconds with natural language and organize projects effortlessly.",
+    "step1_title": "1. Instant Omnibar Capture",
+    "step1_desc": "Write your thoughts freely. Prefix with '// ' to register an actionable task, or capture quick ideas and notes.",
+    "step2_title": "2. Synaptic Links with '@' and '#'",
+    "step2_desc": "Use '@' to assign team members and '#' to link to project cells (#marketing, #launch).",
+    "step3_title": "3. Natural Dates & Live Progress",
+    "step3_desc": "Type deadlines like 'tomorrow at 10', 'next Friday', or 'in 3 days'. The engine schedules the particle automatically.",
+    "tip1_title": "💡 Mobile Ergonomics Tip",
+    "tip1_desc": "On phones and tablets, tap the floating '+' button in the bottom corner to type with your thumb on the go.",
+    "tip2_title": "⚡ Universal Shortcut",
+    "tip2_desc": "Press ⌘K (Mac) or Ctrl+K (Windows) from any view to trigger the Omnibar instantly.",
+    "tip3_title": "🧬 Reactive Cells",
+    "tip3_desc": "Click any '#' tag to filter your board by project and view its completion rate in real time."
   },
   "CTA": {
     "title": "Ready to test the engine?",

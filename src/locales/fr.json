@@ -70,8 +70,38 @@
     "nextjs_boilerplate_logo": "Logo Next.js SaaS Boilerplate"
   },
   "FAQ": {
-    "question": "Lorem ipsum dolor sit amet, consectetur adipiscing elit?",
-    "answer": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam aliquam enim dui, id consequat turpis ullamcorper ac. Mauris id quam dolor. Nullam eu egestas turpis. Proin risus elit, sollicitudin in mi a, accumsan euismod turpis. In euismod mi sed diam tristique hendrerit."
+    "section_subtitle": "Des Questions ?",
+    "section_title": "Foire Aux Questions",
+    "section_description": "Tout ce que vous devez savoir sur la phase Alpha actuelle, les comptes gratuits et le modèle de licences.",
+    "q1": "Que comprend l'accès gratuit Alpha Tester actuel ?",
+    "a1": "Pendant la phase de test avec amis et testeurs, tous les comptes disposent du plan Alpha Tester avec un accès 100% illimité à l'Omnibarre, la synchronisation Google et les cellules sans aucun coût.",
+    "q2": "Comment fonctionne le plan gratuit et l'invitation de collaborateurs ?",
+    "a2": "La création de compte et de votre première organisation est gratuite à vie pour 1 utilisateur. L'invitation du premier collaborateur active un essai gratuit de 30 jours.",
+    "q3": "Quelle est la différence entre Google Sync en lecture et en écriture ?",
+    "a3": "La synchronisation en lecture seule est incluse gratuitement. L'édition et la création d'événements depuis l'Omnibarre nécessite le plan Professionnel.",
+    "q4": "Comment s'intègrent les connecteurs comme STEL Order ERP ?",
+    "a4": "Les connecteurs ERP sont gérés comme des modules mensuels indépendants (add-ons), vous permettant de payer uniquement les fonctionnalités nécessaires.",
+    "q5": "Que se passe-t-il si une organisation devient inactive ?",
+    "a5": "Pour préserver les serveurs et respecter le RGPD, les comptes inactifs depuis plus de 60 jours entrent en hibernation ; après 180 jours ils sont programmés pour suppression. Les comptes de test Alpha sont protégés.",
+    "q6": "Puis-je gérer plusieurs organisations avec le même compte ?",
+    "a6": "Oui, vous pouvez être membre de plusieurs organisations. Un utilisateur ne peut posséder qu'une seule organisation gratuite à la fois."
+  },
+  "Instructions": {
+    "section_subtitle": "Instructions et Conseils",
+    "section_title": "Maîtrisez Votre Flux Moléculaire",
+    "section_description": "Capturez des idées en quelques millisecondes et organisez vos projets facilement.",
+    "step1_title": "1. Capture Instantanée dans l'Omnibarre",
+    "step1_desc": "Écrivez librement. Utilisez '// ' pour une tâche actionable, ou notez une idée rapide.",
+    "step2_title": "2. Connexions Synaptiques avec '@' et '#'",
+    "step2_desc": "Utilisez '@' pour désigner un membre de l'équipe et '#' pour relier un projet (#marketing, #lancement).",
+    "step3_title": "3. Délais Naturels et Progression",
+    "step3_desc": "Indiquez des dates en langage naturel comme 'demain à 10h' ou 'vendredi prochain'.",
+    "tip1_title": "💡 Conseil Ergonomique Mobile",
+    "tip1_desc": "Sur smartphone, appuyez sur le bouton flottant '+' pour capturer avec le pouce en déplacement.",
+    "tip2_title": "⚡ Raccourci Universel",
+    "tip2_desc": "Appuyez sur ⌘K (Mac) ou Ctrl+K (Windows) pour ouvrir l'Omnibarre à tout moment.",
+    "tip3_title": "🧬 Cellules Réactives",
+    "tip3_desc": "Cliquez sur une étiquette '#' pour filtrer le tableau et suivre l'avancement en temps réel."
   },
   "CTA": {
     "title": "Vous êtes prêt?",

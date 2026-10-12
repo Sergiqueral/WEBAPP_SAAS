@@ -1,7 +1,13 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { PageMessage } from '@/features/dashboard/PageMessage';
 import { TitleBar } from '@/features/dashboard/TitleBar';
-import { CodexDashboardView, CodexOmnibarModal, CodexOmnibarTrigger, CodexPreferencesModal } from '@/modules/codex';
+import {
+  CodexDashboardView,
+  CodexOmnibarModal,
+  CodexOmnibarTrigger,
+  CodexOnboardingWizard,
+  CodexPreferencesModal,
+} from '@/modules/codex';
 
 export default async function DashboardIndexPage(props: {
   params: Promise<{ locale: string }>;
@@ -25,6 +31,7 @@ export default async function DashboardIndexPage(props: {
           description={t('title_bar_description')}
         />
         <div className="flex items-center gap-2">
+          <CodexOnboardingWizard />
           <CodexPreferencesModal />
           <CodexOmnibarTrigger />
         </div>

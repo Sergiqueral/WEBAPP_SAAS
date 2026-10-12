@@ -70,8 +70,38 @@
     "nextjs_boilerplate_logo": "Gorila Core"
   },
   "FAQ": {
-    "question": "¿Qué ocurre con los datos que introduzca durante este mes de test?",
-    "answer": "Esta instancia es un banco de pruebas de carga, rendimiento y ergonomía. No introduzcas información confidencial ni definitiva, ya que la base de datos se reseteará al cumplirse el periodo de pruebas de 1 mes."
+    "section_subtitle": "Resolución de Dudas",
+    "section_title": "Preguntas Frecuentes sobre Gorila y el Modelo de Licenciamiento",
+    "section_description": "Todo lo que necesitas saber sobre el periodo de pruebas actual, las cuentas gratuitas y las capacidades futuras.",
+    "q1": "¿Qué incluye el acceso Alpha Tester gratuito actual?",
+    "a1": "Durante la fase actual de pruebas con amigos y evaluadores, todas las cuentas y organizaciones tienen concedido el plan Alpha Tester con acceso 100% ilimitado a la Omnibarra, sincronización con Google, creación de células y conectores sin coste alguno.",
+    "q2": "¿Cómo funcionará el plan gratuito y la invitación a colaboradores?",
+    "a2": "Crear una cuenta y tu primera organización es totalmente gratis para siempre para 1 usuario. Al invitar al primer colaborador a tu equipo, se activa automáticamente un periodo de prueba gratuita de 30 días. Tras ese periodo, los asientos de usuario adicionales requieren suscripción.",
+    "q3": "¿Cuál es la diferencia entre Google Sync en modo lectura y edición?",
+    "a3": "La conexión en modo lectura (consultar tus eventos y tareas en el feed) se incluye de forma gratuita. La sincronización bidireccional en modo edición (crear y modificar eventos de Google Calendar directamente desde la Omnibarra) estará disponible en los planes superiores.",
+    "q4": "¿Cómo se integran conectores externos como STEL Order ERP?",
+    "a4": "Los conectores con sistemas de facturación y ERPs externos se gestionan como complementos mensuales independientes (add-ons). Esto permite pagar únicamente por las integraciones específicas que tu organización necesita.",
+    "q5": "¿Qué ocurre si una organización deja de utilizarse (cuentas inactivas o zombis)?",
+    "a5": "Para proteger los servidores y cumplir con el RGPD, las organizaciones sin actividad durante más de 60 días entran en hibernación; a los 90 días se revocan sus conexiones externas y tras 180 días de inactividad continuada se programan para purga. Las cuentas de prueba Alpha y las protegidas por administración están exentas.",
+    "q6": "¿Puedo gestionar varias organizaciones con el mismo usuario?",
+    "a6": "Sí, puedes ser miembro o invitado de múltiples organizaciones con una única cuenta. Sin embargo, para evitar abusos, un mismo usuario solo puede ser propietario de 1 organización gratuita a la vez; para crear más organizaciones como dueño, se requiere un plan profesional."
+  },
+  "Instructions": {
+    "section_subtitle": "Instrucciones de Uso y Consejos",
+    "section_title": "Domina la Biología Molecular de tus Tareas",
+    "section_description": "Aprende a capturar ideas en milisegundos con lenguaje natural y organizar proyectos sin esfuerzo.",
+    "step1_title": "1. Captura Instantánea en la Omnibarra",
+    "step1_desc": "Escribe tus pensamientos tal como vienen a tu mente. Antepón '// ' para registrar una tarea accionable, o simplemente escribe una nota o idea.",
+    "step2_title": "2. Conexiones Sinápticas con '@' y '#'",
+    "step2_desc": "Usa '@' para asignar o referenciar a un compañero de tu equipo y '#' para vincular la tarea a una célula de proyecto (#marketing, #lanzamiento).",
+    "step3_title": "3. Fechas Naturales y Progreso Vivo",
+    "step3_desc": "Indica plazos como 'mañana a las 10', 'el próximo viernes' o 'en 3 días'. El motor interpretará la fecha y colocará la partícula en tu calendario.",
+    "tip1_title": "💡 Consejo Ergonómico Móvil",
+    "tip1_desc": "En teléfonos y tablets, usa el botón flotante '+' en la esquina inferior para abrir la Omnibarra con el pulgar mientras caminas.",
+    "tip2_title": "⚡ Atajo Universal",
+    "tip2_desc": "Presiona ⌘K (en Mac) o Ctrl+K (en Windows) desde cualquier pantalla para disparar la Omnibarra instantáneamente.",
+    "tip3_title": "🧬 Células Reactivas",
+    "tip3_desc": "Haz clic sobre cualquier etiqueta '#' para filtrar todo el tablero por ese proyecto y ver su porcentaje de avance en vivo."
   },
   "CTA": {
     "title": "¿Listo para poner a prueba el sistema?",

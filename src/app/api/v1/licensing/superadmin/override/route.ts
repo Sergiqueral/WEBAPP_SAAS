@@ -7,7 +7,7 @@ import {
   setTenantProtection,
   upsertFeatureOverride,
   upsertTenantAddon,
-} from '@/modules/licensing';
+} from '@/modules/licensing/server';
 
 export async function POST(request: Request) {
   try {

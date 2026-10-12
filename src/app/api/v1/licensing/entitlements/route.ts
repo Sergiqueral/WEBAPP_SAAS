@@ -4,9 +4,11 @@ import { NextResponse } from 'next/server';
 import { resolveTenantContext } from '@/modules/codex/domain/security/tenantContext';
 import {
   evaluateEntitlement,
+} from '@/modules/licensing';
+import {
   getTenantSubscriptionSnapshot,
   touchTenantActivity,
-} from '@/modules/licensing';
+} from '@/modules/licensing/server';
 
 export async function GET(request: Request) {
   try {

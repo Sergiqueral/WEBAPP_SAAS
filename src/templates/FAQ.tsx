@@ -5,33 +5,32 @@ import { Section } from '@/features/landing/Section';
 export const FAQ = () => {
   const t = useTranslations('FAQ');
 
+  const faqItems = [
+    { key: 'q1', question: t('q1'), answer: t('a1') },
+    { key: 'q2', question: t('q2'), answer: t('a2') },
+    { key: 'q3', question: t('q3'), answer: t('a3') },
+    { key: 'q4', question: t('q4'), answer: t('a4') },
+    { key: 'q5', question: t('q5'), answer: t('a5') },
+    { key: 'q6', question: t('q6'), answer: t('a6') },
+  ];
+
   return (
-    <Section>
+    <Section
+      subtitle={t('section_subtitle')}
+      title={t('section_title')}
+      description={t('section_description')}
+    >
       <Accordion type="multiple" className="w-full">
-        <AccordionItem value="item-1">
-          <AccordionTrigger>{t('question')}</AccordionTrigger>
-          <AccordionContent>{t('answer')}</AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="item-2">
-          <AccordionTrigger>{t('question')}</AccordionTrigger>
-          <AccordionContent>{t('answer')}</AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="item-3">
-          <AccordionTrigger>{t('question')}</AccordionTrigger>
-          <AccordionContent>{t('answer')}</AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="item-4">
-          <AccordionTrigger>{t('question')}</AccordionTrigger>
-          <AccordionContent>{t('answer')}</AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="item-5">
-          <AccordionTrigger>{t('question')}</AccordionTrigger>
-          <AccordionContent>{t('answer')}</AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="item-6">
-          <AccordionTrigger>{t('question')}</AccordionTrigger>
-          <AccordionContent>{t('answer')}</AccordionContent>
-        </AccordionItem>
+        {faqItems.map(item => (
+          <AccordionItem key={item.key} value={item.key}>
+            <AccordionTrigger className="text-left font-semibold">
+              {item.question}
+            </AccordionTrigger>
+            <AccordionContent className="leading-relaxed text-muted-foreground">
+              {item.answer}
+            </AccordionContent>
+          </AccordionItem>
+        ))}
       </Accordion>
     </Section>
   );
