@@ -68,6 +68,7 @@ describe('Vistas Multimodales - Helpers de Agrupación y Clasificación (Hito 5.
 
       // Estado inicial en Pending
       let groups = groupMoleculesByKanbanStatus(molecules);
+
       expect(groups.pending).toHaveLength(1);
       expect(groups.in_progress).toHaveLength(0);
       expect(groups.done).toHaveLength(0);
@@ -81,6 +82,7 @@ describe('Vistas Multimodales - Helpers de Agrupación y Clasificación (Hito 5.
         },
       }));
       groups = groupMoleculesByKanbanStatus(molecules);
+
       expect(groups.pending).toHaveLength(0);
       expect(groups.in_progress).toHaveLength(1);
       expect(groups.done).toHaveLength(0);
@@ -94,6 +96,7 @@ describe('Vistas Multimodales - Helpers de Agrupación y Clasificación (Hito 5.
         },
       }));
       groups = groupMoleculesByKanbanStatus(molecules);
+
       expect(groups.pending).toHaveLength(0);
       expect(groups.in_progress).toHaveLength(0);
       expect(groups.done).toHaveLength(1);
