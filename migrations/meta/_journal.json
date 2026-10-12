@@ -15,6 +15,13 @@
       "when": 1791811447785,
       "tag": "0001_nebulous_master_chief",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791825921063,
+      "tag": "0002_damp_terror",
+      "breakpoints": true
     }
   ]
 }

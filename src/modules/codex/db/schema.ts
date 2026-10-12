@@ -2,7 +2,7 @@ import { index, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm
 
 // ==========================================
 // MÓDULO GORILA CODEX: BIOLOGÍA DEL DATO
-// Esquema Drizzle autocontenido
+// Esquema Drizzle autocontenido y de alto rendimiento
 // ==========================================
 
 export const membershipsSchema = pgTable('memberships', {
@@ -38,6 +38,13 @@ export const atomsSchema = pgTable('atoms', {
 }, table => [
   index('atoms_org_type_idx').on(table.organizationId, table.type),
   index('atoms_org_created_idx').on(table.organizationId, table.createdAt),
+  // Índices de alto rendimiento para escalabilidad a millones de partículas (Paso 4):
+  // 1. Evita Sort en memoria en feed, kanban y calendarios cuando se filtra por tipo
+  index('atoms_org_type_created_idx').on(table.organizationId, table.type, table.createdAt.desc()),
+  // 2. Ordenación rápida por átomos recientemente modificados
+  index('atoms_org_updated_idx').on(table.organizationId, table.updatedAt.desc()),
+  // 3. Índice GIN sobre payload para búsquedas y filtros en atributos dinámicos
+  index('atoms_payload_gin_idx').using('gin', table.payload),
 ]);
 
 export const linksSchema = pgTable('links', {
@@ -63,6 +70,14 @@ export const linksSchema = pgTable('links', {
     table.targetAtomId,
     table.relationType,
   ),
+  // Índices de alto rendimiento para el grafo de sinapsis (Paso 4):
+  // 1. Acelera CASCADE en eliminaciones y navegación directa por ID de átomo
+  index('links_source_atom_idx').on(table.sourceAtomId),
+  index('links_target_atom_idx').on(table.targetAtomId),
+  // 2. Filtrado rápido por tipo de relación (ej. ASSIGNED_TO, TAGGED_WITH)
+  index('links_org_relation_idx').on(table.organizationId, table.relationType),
+  // 3. Auditoría cronológica de sinapsis
+  index('links_org_created_idx').on(table.organizationId, table.createdAt.desc()),
 ]);
 
 export const atomExternalIdentitiesSchema = pgTable('atom_external_identities', {
