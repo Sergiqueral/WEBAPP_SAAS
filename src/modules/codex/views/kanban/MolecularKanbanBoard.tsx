@@ -8,6 +8,7 @@ import { groupMoleculesByKanbanStatus, KANBAN_COLUMNS } from '@/modules/codex/do
 
 export type MolecularKanbanBoardProps = {
   molecules: MolecularProjection[];
+  activeFilterAtomId?: string | null;
   onStatusChange?: (atomId: string, newStatus: KanbanColumnId) => void;
   onFilterByAtom?: (atom: Atom) => void;
   onOpenDetail?: (atomId: string) => void;
@@ -15,6 +16,7 @@ export type MolecularKanbanBoardProps = {
 };
 
 export const MolecularKanbanBoard: React.FC<MolecularKanbanBoardProps> = ({
+  activeFilterAtomId,
   molecules,
   onDelete,
   onFilterByAtom,
@@ -241,7 +243,8 @@ export const MolecularKanbanBoard: React.FC<MolecularKanbanBoardProps> = ({
                                     ? nPayload.title
                                     : atom.id;
 
-                                const isEntity = ['client', 'contact', 'person'].includes(atom.type);
+                                const isEntity = ['client', 'contact', 'person', 'provider', 'employee', 'entity'].includes(atom.type);
+                                const isActive = atom.id === activeFilterAtomId;
 
                                 return (
                                   <button
@@ -251,21 +254,28 @@ export const MolecularKanbanBoard: React.FC<MolecularKanbanBoardProps> = ({
                                       e.stopPropagation();
                                       onFilterByAtom?.(atom);
                                     }}
+                                    title={isActive ? `Quitar filtro de ${nName}` : `Filtrar por ${nName}`}
                                     className={`
                                       inline-flex items-center gap-0.5
                                       rounded-sm px-1.5 py-0.5 text-[10px]
                                       font-medium transition-all
                                       hover:scale-105
                                       ${
-                                  isEntity
+                                  isActive
                                     ? `
-                                      bg-purple-500/10 text-purple-700
-                                      dark:text-purple-300
+                                      border border-primary bg-primary
+                                      text-primary-foreground shadow-xs ring-2
+                                      ring-primary/40
                                     `
-                                    : `
-                                      bg-sky-500/10 text-sky-700
-                                      dark:text-sky-300
-                                    `
+                                    : isEntity
+                                      ? `
+                                        bg-purple-500/10 text-purple-700
+                                        dark:text-purple-300
+                                      `
+                                      : `
+                                        bg-sky-500/10 text-sky-700
+                                        dark:text-sky-300
+                                      `
                                   }
                                     `}
                                   >

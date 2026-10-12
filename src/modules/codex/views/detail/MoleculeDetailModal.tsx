@@ -11,6 +11,7 @@ import {
   CornerDownRight,
   Edit2,
   FileText,
+  Filter,
   Hash,
   Inbox,
   Link2,
@@ -31,6 +32,7 @@ export type MoleculeDetailModalProps = {
   onClose: () => void;
   onAtomMutated?: (updatedAtom: Atom) => void;
   onAtomDeleted?: (atomId: string) => void;
+  onFilterByAtom?: (atom: Atom) => void;
 };
 
 export const MoleculeDetailModal: React.FC<MoleculeDetailModalProps> = ({
@@ -39,6 +41,7 @@ export const MoleculeDetailModal: React.FC<MoleculeDetailModalProps> = ({
   onAtomDeleted,
   onAtomMutated,
   onClose,
+  onFilterByAtom,
 }) => {
   // Pila de navegación de saltos moleculares derivados de la navegación de vecinos
   const [subHistory, setSubHistory] = useState<string[]>([]);
@@ -160,6 +163,11 @@ export const MoleculeDetailModal: React.FC<MoleculeDetailModalProps> = ({
       setIsConfirmingDelete(false);
       setActionError(null);
     }
+  };
+
+  const handleFilterByNeighbor = (neighborAtom: Atom) => {
+    onClose();
+    onFilterByAtom?.(neighborAtom);
   };
 
   // Mutación de estado (completado / pendiente)
@@ -947,18 +955,43 @@ export const MoleculeDetailModal: React.FC<MoleculeDetailModalProps> = ({
                                         </span>
                                       </button>
 
-                                      <button
-                                        type="button"
-                                        onClick={() => handleDeleteSynapse(syn.linkId)}
-                                        className="
-                                          ml-2 text-muted-foreground/60
-                                          transition-colors
-                                          hover:text-destructive
-                                        "
-                                        title="Desconectar sinapsis"
+                                      <div className="
+                                        ml-2 flex shrink-0 items-center gap-1
+                                      "
                                       >
-                                        <X className="size-3.5" />
-                                      </button>
+                                        {onFilterByAtom && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleFilterByNeighbor(syn.atom)}
+                                            className="
+                                              rounded-md p-1
+                                              text-muted-foreground/60
+                                              transition-colors
+                                              hover:bg-primary/10
+                                              hover:text-primary
+                                            "
+                                            title={`Filtrar feed por ${targetName}`}
+                                            aria-label={`Filtrar feed por ${targetName}`}
+                                          >
+                                            <Filter className="size-3.5" />
+                                          </button>
+                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteSynapse(syn.linkId)}
+                                          className="
+                                            rounded-md p-1
+                                            text-muted-foreground/60
+                                            transition-colors
+                                            hover:bg-destructive/10
+                                            hover:text-destructive
+                                          "
+                                          title="Desconectar sinapsis"
+                                          aria-label="Desconectar sinapsis"
+                                        >
+                                          <X className="size-3.5" />
+                                        </button>
+                                      </div>
                                     </div>
                                   );
                                 })}
@@ -1037,18 +1070,43 @@ export const MoleculeDetailModal: React.FC<MoleculeDetailModalProps> = ({
                                         </span>
                                       </button>
 
-                                      <button
-                                        type="button"
-                                        onClick={() => handleDeleteSynapse(syn.linkId)}
-                                        className="
-                                          ml-2 text-muted-foreground/60
-                                          transition-colors
-                                          hover:text-destructive
-                                        "
-                                        title="Desconectar sinapsis"
+                                      <div className="
+                                        ml-2 flex shrink-0 items-center gap-1
+                                      "
                                       >
-                                        <X className="size-3.5" />
-                                      </button>
+                                        {onFilterByAtom && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleFilterByNeighbor(syn.atom)}
+                                            className="
+                                              rounded-md p-1
+                                              text-muted-foreground/60
+                                              transition-colors
+                                              hover:bg-emerald-500/10
+                                              hover:text-emerald-600
+                                            "
+                                            title={`Filtrar feed por ${sourceName}`}
+                                            aria-label={`Filtrar feed por ${sourceName}`}
+                                          >
+                                            <Filter className="size-3.5" />
+                                          </button>
+                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteSynapse(syn.linkId)}
+                                          className="
+                                            rounded-md p-1
+                                            text-muted-foreground/60
+                                            transition-colors
+                                            hover:bg-destructive/10
+                                            hover:text-destructive
+                                          "
+                                          title="Desconectar sinapsis"
+                                          aria-label="Desconectar sinapsis"
+                                        >
+                                          <X className="size-3.5" />
+                                        </button>
+                                      </div>
                                     </div>
                                   );
                                 })}

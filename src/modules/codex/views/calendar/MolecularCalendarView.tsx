@@ -1,6 +1,6 @@
 'use client';
 
-import type { MolecularProjection } from '@/modules/codex/domain/types';
+import type { Atom, MolecularProjection } from '@/modules/codex/domain/types';
 import {
   Calendar as CalendarIcon,
   Check,
@@ -18,13 +18,17 @@ import {
 
 export type MolecularCalendarViewProps = {
   molecules: MolecularProjection[];
+  activeFilterAtomId?: string | null;
+  onFilterByAtom?: (atom: Atom) => void;
   onOpenDetail?: (atomId: string) => void;
 };
 
 const WEEKDAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 export const MolecularCalendarView: React.FC<MolecularCalendarViewProps> = ({
+  activeFilterAtomId: _activeFilterAtomId,
   molecules,
+  onFilterByAtom: _onFilterByAtom,
   onOpenDetail,
 }) => {
   const today = new Date();

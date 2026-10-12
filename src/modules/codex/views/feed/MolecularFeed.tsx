@@ -9,6 +9,7 @@ import {
   Inbox,
   Layers,
   ListTodo,
+  Network,
   Plus,
   RefreshCw,
   Sparkles,
@@ -222,6 +223,10 @@ export const MolecularFeed: React.FC = () => {
     setMolecules(prev => prev.filter(m => m.root.id !== deletedId));
   };
 
+  const handleFilterByAtom = (atom: Atom) => {
+    setActiveFilterAtom(prev => (prev?.id === atom.id ? null : atom));
+  };
+
   return (
     <div className="w-full space-y-4">
       {/* Barra superior de pestañas y controles */}
@@ -398,8 +403,11 @@ export const MolecularFeed: React.FC = () => {
       {/* Barra de Filtro de Contexto / Grafo Biológico */}
       <ContextFilterBar
         activeFilterAtom={activeFilterAtom}
+        matchCount={molecules.length}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
         onClearFilter={() => setActiveFilterAtom(null)}
-        onSelectFilter={atomStub => setActiveFilterAtom({
+        onSelectFilter={atomStub => handleFilterByAtom({
           id: atomStub.id,
           organizationId: '',
           type: atomStub.type,
@@ -437,9 +445,10 @@ export const MolecularFeed: React.FC = () => {
           ? (
               <MolecularKanbanBoard
                 molecules={molecules}
+                activeFilterAtomId={activeFilterAtom?.id}
                 onStatusChange={handleKanbanStatusChange}
                 onDelete={handleDelete}
-                onFilterByAtom={atom => setActiveFilterAtom(atom)}
+                onFilterByAtom={handleFilterByAtom}
                 onOpenDetail={handleOpenDetail}
               />
             )
@@ -447,6 +456,8 @@ export const MolecularFeed: React.FC = () => {
             ? (
                 <MolecularCalendarView
                   molecules={molecules}
+                  activeFilterAtomId={activeFilterAtom?.id}
+                  onFilterByAtom={handleFilterByAtom}
                   onOpenDetail={handleOpenDetail}
                 />
               )
@@ -462,47 +473,101 @@ export const MolecularFeed: React.FC = () => {
                       bg-primary/10 text-primary
                     "
                     >
-                      {activeTab === 'task'
+                      {activeFilterAtom
                         ? (
-                            <CheckCircle2 className="size-6" />
+                            <Network className="size-6" />
                           )
-                        : (
-                            <Sparkles className="size-6" />
-                          )}
+                        : activeTab === 'task'
+                          ? (
+                              <CheckCircle2 className="size-6" />
+                            )
+                          : (
+                              <Sparkles className="size-6" />
+                            )}
                     </div>
                     <h3 className="mt-3 text-base font-semibold text-foreground">
-                      {activeTab === 'task'
-                        ? statusFilter === 'done'
-                          ? 'No hay tareas completadas todavía'
-                          : 'No tienes tareas pendientes'
-                        : 'No hay elementos en esta vista'}
+                      {activeFilterAtom
+                        ? `No hay partículas conectadas a ${(activeFilterAtom.payload as { name?: string })?.name ?? activeFilterAtom.type}`
+                        : activeTab === 'task'
+                          ? statusFilter === 'done'
+                            ? 'No hay tareas completadas todavía'
+                            : 'No tienes tareas pendientes'
+                          : 'No hay elementos en esta vista'}
                     </h3>
                     <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-                      Pulsa
-                      {' '}
-                      <kbd className="
-                        rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs
-                        font-medium
-                      "
-                      >
-                        ⌘K
-                      </kbd>
-                      {' '}
-                      o abre la Omnibarra para capturar un átomo con @entidades, //fechas y #contextos.
+                      {activeFilterAtom
+                        ? (
+                            statusFilter === 'pending'
+                              ? 'Las partículas conectadas a este nodo pueden estar completadas o en otro estado.'
+                              : 'Aún no se han enlazado partículas a este nodo del grafo biológico.'
+                          )
+                        : (
+                            <>
+                              Pulsa
+                              {' '}
+                              <kbd className="
+                                rounded-sm bg-muted px-1.5 py-0.5 font-mono
+                                text-xs font-medium
+                              "
+                              >
+                                ⌘K
+                              </kbd>
+                              {' '}
+                              o abre la Omnibarra para capturar un átomo con @entidades, //fechas y #contextos.
+                            </>
+                          )}
                     </p>
-                    <button
-                      type="button"
-                      onClick={openOmnibar}
-                      className="
-                        mt-4 inline-flex items-center gap-1.5 rounded-lg
-                        bg-primary px-3.5 py-2 text-xs font-semibold
-                        text-primary-foreground shadow-xs transition-colors
-                        hover:bg-primary/90
-                      "
+                    <div className="
+                      mt-4 flex flex-wrap items-center justify-center gap-2
+                    "
                     >
-                      <Plus className="size-4" />
-                      <span>Capturar nuevo átomo</span>
-                    </button>
+                      {activeFilterAtom && statusFilter === 'pending' && (
+                        <button
+                          type="button"
+                          onClick={() => setStatusFilter('all')}
+                          className="
+                            inline-flex items-center gap-1.5 rounded-lg border
+                            border-border bg-card px-3.5 py-2 text-xs
+                            font-semibold text-foreground shadow-2xs
+                            hover:bg-muted
+                          "
+                        >
+                          Ver todas (incluyendo hechas)
+                        </button>
+                      )}
+                      {activeFilterAtom
+                        ? (
+                            <button
+                              type="button"
+                              onClick={() => setActiveFilterAtom(null)}
+                              className="
+                                inline-flex items-center gap-1.5 rounded-lg
+                                bg-primary px-3.5 py-2 text-xs font-semibold
+                                text-primary-foreground shadow-xs
+                                transition-colors
+                                hover:bg-primary/90
+                              "
+                            >
+                              Quitar filtro de grafo
+                            </button>
+                          )
+                        : (
+                            <button
+                              type="button"
+                              onClick={openOmnibar}
+                              className="
+                                inline-flex items-center gap-1.5 rounded-lg
+                                bg-primary px-3.5 py-2 text-xs font-semibold
+                                text-primary-foreground shadow-xs
+                                transition-colors
+                                hover:bg-primary/90
+                              "
+                            >
+                              <Plus className="size-4" />
+                              <span>Capturar nuevo átomo</span>
+                            </button>
+                          )}
+                    </div>
                   </div>
                 )
               : (
@@ -511,9 +576,10 @@ export const MolecularFeed: React.FC = () => {
                       <MoleculeCard
                         key={molecule.root.id}
                         molecule={molecule}
+                        activeFilterAtomId={activeFilterAtom?.id}
                         onToggleStatus={handleToggleStatus}
                         onDelete={handleDelete}
-                        onFilterByAtom={atom => setActiveFilterAtom(atom)}
+                        onFilterByAtom={handleFilterByAtom}
                         onOpenDetail={handleOpenDetail}
                       />
                     ))}
@@ -530,6 +596,7 @@ export const MolecularFeed: React.FC = () => {
         }}
         onAtomMutated={handleAtomMutated}
         onAtomDeleted={handleAtomDeletedFromDetail}
+        onFilterByAtom={handleFilterByAtom}
       />
     </div>
   );

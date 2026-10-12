@@ -166,4 +166,63 @@ describe('Vistas Multimodales - Helpers de Agrupación y Clasificación (Hito 5.
       expect(sep30?.molecules).toHaveLength(1);
     });
   });
+
+  describe('Navegación Fractal y Filtrado por Sinapsis (Hito 5.4)', () => {
+    it('proyecta y filtra moléculas conectadas a un átomo objetivo de la sinapsis', () => {
+      const entityAtom = {
+        id: 'entity-alberto',
+        organizationId: 'org-test',
+        type: 'person',
+        payload: { name: 'Alberto' },
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const task1: MolecularProjection = {
+        root: {
+          id: 'task-1',
+          organizationId: 'org-test',
+          type: 'task',
+          payload: { title: 'Cita con Alberto' },
+          metadata: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        outgoing: [{
+          linkId: 'link-1',
+          relationType: 'ASSIGNED_TO',
+          atom: entityAtom,
+          metadata: {},
+        }],
+        incoming: [],
+        externalIdentities: [],
+      };
+
+      const task2: MolecularProjection = {
+        root: {
+          id: 'task-2',
+          organizationId: 'org-test',
+          type: 'task',
+          payload: { title: 'Comprar materiales' },
+          metadata: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        outgoing: [],
+        incoming: [],
+        externalIdentities: [],
+      };
+
+      const molecules = [task1, task2];
+
+      const connected = molecules.filter(m =>
+        m.outgoing.some(s => s.atom.id === 'entity-alberto')
+        || m.incoming.some(s => s.atom.id === 'entity-alberto'),
+      );
+
+      expect(connected).toHaveLength(1);
+      expect(connected[0]?.root.id).toBe('task-1');
+    });
+  });
 });

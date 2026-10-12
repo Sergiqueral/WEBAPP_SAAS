@@ -1,11 +1,12 @@
 'use client';
 
 import type { Atom, MolecularProjection } from '@/modules/codex/domain/types';
-import { Calendar, Check, FileText, Hash, Inbox, Network, Trash2, User } from 'lucide-react';
+import { Calendar, Check, FileText, Hash, Inbox, Link2, Network, Trash2, User } from 'lucide-react';
 import React from 'react';
 
 export type MoleculeCardProps = {
   molecule: MolecularProjection;
+  activeFilterAtomId?: string | null;
   onToggleStatus?: (atomId: string, currentStatus: string) => void;
   onFilterByAtom?: (atom: Atom) => void;
   onOpenDetail?: (atomId: string) => void;
@@ -13,6 +14,7 @@ export type MoleculeCardProps = {
 };
 
 export const MoleculeCard: React.FC<MoleculeCardProps> = ({
+  activeFilterAtomId,
   molecule,
   onDelete,
   onFilterByAtom,
@@ -81,6 +83,10 @@ export const MoleculeCard: React.FC<MoleculeCardProps> = ({
 
   const contextNeighbors = neighbors.filter(atom =>
     ['tag', 'project', 'topic', 'context'].includes(atom.type),
+  );
+
+  const otherNeighbors = neighbors.filter(atom =>
+    !['client', 'contact', 'person', 'provider', 'employee', 'entity', 'tag', 'project', 'topic', 'context'].includes(atom.type),
   );
 
   return (
@@ -201,25 +207,35 @@ export const MoleculeCard: React.FC<MoleculeCardProps> = ({
         </div>
 
         {/* Sinapsis moleculares: Entidades (@) y Contextos (#) */}
-        {(entityNeighbors.length > 0 || contextNeighbors.length > 0) && (
+        {(entityNeighbors.length > 0 || contextNeighbors.length > 0 || otherNeighbors.length > 0) && (
           <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
             {entityNeighbors.map((atom) => {
               const name = (atom.payload as { name?: string })?.name ?? atom.type;
+              const isActive = atom.id === activeFilterAtomId;
               return (
                 <button
                   key={atom.id}
                   type="button"
                   onClick={() => onFilterByAtom?.(atom)}
-                  className="
-                    inline-flex items-center gap-1 rounded-md border
-                    border-purple-200 bg-purple-50 px-2 py-0.5 text-xs
-                    font-medium text-purple-700 transition-colors
+                  className={`
+                    inline-flex items-center gap-1 rounded-md px-2 py-0.5
+                    text-xs font-medium transition-all
+                    ${
+                isActive
+                  ? `
+                    border border-primary bg-primary text-primary-foreground
+                    shadow-xs ring-2 ring-primary/40
+                  `
+                  : `
+                    border border-purple-200 bg-purple-50 text-purple-700
                     hover:bg-purple-100
                     dark:border-purple-900/50 dark:bg-purple-950/50
                     dark:text-purple-300
                     dark:hover:bg-purple-900/70
-                  "
-                  title={`Filtrar por @${name}`}
+                  `
+                }
+                  `}
+                  title={isActive ? `Quitar filtro de @${name}` : `Filtrar por @${name}`}
                 >
                   <User className="size-3 opacity-70" />
                   @
@@ -230,24 +246,66 @@ export const MoleculeCard: React.FC<MoleculeCardProps> = ({
 
             {contextNeighbors.map((atom) => {
               const name = (atom.payload as { name?: string })?.name ?? atom.type;
+              const isActive = atom.id === activeFilterAtomId;
               return (
                 <button
                   key={atom.id}
                   type="button"
                   onClick={() => onFilterByAtom?.(atom)}
-                  className="
-                    inline-flex items-center gap-1 rounded-md border
-                    border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium
-                    text-blue-700 transition-colors
+                  className={`
+                    inline-flex items-center gap-1 rounded-md px-2 py-0.5
+                    text-xs font-medium transition-all
+                    ${
+                isActive
+                  ? `
+                    border border-primary bg-primary text-primary-foreground
+                    shadow-xs ring-2 ring-primary/40
+                  `
+                  : `
+                    border border-blue-200 bg-blue-50 text-blue-700
                     hover:bg-blue-100
                     dark:border-blue-900/50 dark:bg-blue-950/50
                     dark:text-blue-300
                     dark:hover:bg-blue-900/70
-                  "
-                  title={`Filtrar por #${name}`}
+                  `
+                }
+                  `}
+                  title={isActive ? `Quitar filtro de #${name}` : `Filtrar por #${name}`}
                 >
                   <Hash className="size-3 opacity-70" />
                   #
+                  {name}
+                </button>
+              );
+            })}
+
+            {otherNeighbors.map((atom) => {
+              const nPayload = (atom.payload ?? {}) as Record<string, unknown>;
+              const name = String(nPayload.title ?? nPayload.name ?? atom.type);
+              const isActive = atom.id === activeFilterAtomId;
+              return (
+                <button
+                  key={atom.id}
+                  type="button"
+                  onClick={() => onFilterByAtom?.(atom)}
+                  className={`
+                    inline-flex items-center gap-1 rounded-md px-2 py-0.5
+                    text-xs font-medium transition-all
+                    ${
+                isActive
+                  ? `
+                    border border-primary bg-primary text-primary-foreground
+                    shadow-xs ring-2 ring-primary/40
+                  `
+                  : `
+                    border border-border/80 bg-muted/60 text-muted-foreground
+                    hover:bg-muted hover:text-foreground
+                  `
+                }
+                  `}
+                  title={isActive ? `Quitar filtro de ${name}` : `Filtrar por ${name}`}
+                >
+                  <Link2 className="size-3 opacity-70" />
                   {name}
                 </button>
               );
