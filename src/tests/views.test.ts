@@ -9,7 +9,7 @@ import {
   KANBAN_COLUMNS,
 } from '@/libs/biology/viewHelpers';
 
-describe('Vistas Multimodales - Helpers de Agrupación y Clasificación (Hito 5.1)', () => {
+describe('Vistas Multimodales - Helpers de Agrupación y Clasificación (Hito 5.1 & 5.3)', () => {
   const createMockMolecule = (id: string, status?: string, dueDate?: string): MolecularProjection => ({
     root: {
       id,
@@ -60,6 +60,44 @@ describe('Vistas Multimodales - Helpers de Agrupación y Clasificación (Hito 5.
       expect(groups.done).toHaveLength(1);
       expect(KANBAN_COLUMNS).toHaveLength(3);
     });
+
+    it('gestiona correctamente transiciones dinámicas de estado simulando drag-and-drop', () => {
+      let molecules = [
+        createMockMolecule('atom-task-1', 'pending'),
+      ];
+
+      // Estado inicial en Pending
+      let groups = groupMoleculesByKanbanStatus(molecules);
+      expect(groups.pending).toHaveLength(1);
+      expect(groups.in_progress).toHaveLength(0);
+      expect(groups.done).toHaveLength(0);
+
+      // Simular arrastre hacia 'in_progress'
+      molecules = molecules.map(m => ({
+        ...m,
+        root: {
+          ...m.root,
+          payload: { ...((m.root.payload ?? {}) as Record<string, unknown>), status: 'in_progress' },
+        },
+      }));
+      groups = groupMoleculesByKanbanStatus(molecules);
+      expect(groups.pending).toHaveLength(0);
+      expect(groups.in_progress).toHaveLength(1);
+      expect(groups.done).toHaveLength(0);
+
+      // Simular arrastre hacia 'done'
+      molecules = molecules.map(m => ({
+        ...m,
+        root: {
+          ...m.root,
+          payload: { ...((m.root.payload ?? {}) as Record<string, unknown>), status: 'done' },
+        },
+      }));
+      groups = groupMoleculesByKanbanStatus(molecules);
+      expect(groups.pending).toHaveLength(0);
+      expect(groups.in_progress).toHaveLength(0);
+      expect(groups.done).toHaveLength(1);
+    });
   });
 
   describe('Agrupación Temporal para Calendario', () => {
@@ -108,6 +146,21 @@ describe('Vistas Multimodales - Helpers de Agrupación y Clasificación (Hito 5.
 
       expect(label.toLowerCase()).toContain('octubre');
       expect(label).toContain('2026');
+    });
+
+    it('asigna correctamente partículas en casillas del mes anterior visibles en la cuadrícula', () => {
+      // Octubre 2026 empieza en Jueves (1 de Octubre de 2026).
+      // Los días Lun 28, Mar 29, Mié 30 de Septiembre de 2026 aparecen en la primera fila.
+      const molecules = [
+        createMockMolecule('sep-day', 'pending', '2026-09-30T10:00:00.000Z'),
+      ];
+
+      const { days } = groupMoleculesByDate(molecules, 2026, 9);
+      const sep30 = days.find(d => d.dateKey === '2026-09-30');
+
+      expect(sep30).toBeDefined();
+      expect(sep30?.isCurrentMonth).toBe(false);
+      expect(sep30?.molecules).toHaveLength(1);
     });
   });
 });
