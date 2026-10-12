@@ -5,18 +5,15 @@ const config: KnipConfig = {
   ignore: [
     'checkly.config.ts',
     'src/components/ui/*',
-    'src/libs/DB.ts',
     'src/libs/I18n.ts',
-    'src/libs/Logger.ts',
     'src/types/Auth.ts',
-    'src/utils/DBConnection.ts',
   ],
   // Dependencies to ignore during analysis
   ignoreDependencies: [
     '@clerk/shared',
-    '@logtape/logtape',
     '@swc/helpers', // Avoid error in CI: "`npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync."
   ],
+  entry: ['src/modules/codex/index.ts!'],
   // Include custom Playwright test file suffixes
   playwright: {
     entry: ['tests/**/*.@(integ|e2e).ts'],

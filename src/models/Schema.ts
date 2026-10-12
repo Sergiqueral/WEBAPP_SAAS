@@ -24,3 +24,6 @@ export const todoSchema = pgTable('todo', {
     .notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
 });
+
+// Módulo Codex - Biología del Dato (Cero invasión)
+export * from '@/modules/codex/db/schema';
