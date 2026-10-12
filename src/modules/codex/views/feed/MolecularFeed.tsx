@@ -15,6 +15,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { MobileFloatingActionButton } from '../../omnibar/ui/MobileFloatingActionButton';
 import { MolecularCalendarView } from '../calendar/MolecularCalendarView';
 import { ContextFilterBar } from '../components/ContextFilterBar';
 import { ViewModeSwitcher } from '../components/ViewModeSwitcher';
@@ -598,6 +599,9 @@ export const MolecularFeed: React.FC = () => {
         onAtomDeleted={handleAtomDeletedFromDetail}
         onFilterByAtom={handleFilterByAtom}
       />
+
+      {/* Botón Flotante de Acción (FAB) para Teléfonos y Tablets */}
+      <MobileFloatingActionButton onClick={openOmnibar} />
     </div>
   );
 };

@@ -20,6 +20,7 @@ export { AccessGuard } from './domain/security/AccessGuard';
 export * from './domain/types';
 export { OmnibarParser } from './omnibar/parser/OmnibarParser';
 export { OmnibarReactor } from './omnibar/reactor/OmnibarReactor';
+export { MobileFloatingActionButton as CodexMobileFAB, MobileFloatingActionButton } from './omnibar/ui/MobileFloatingActionButton';
 // UI Components
 export { OmnibarModal as CodexOmnibarModal } from './omnibar/ui/OmnibarModal';
 export { OmnibarTrigger as CodexOmnibarTrigger } from './omnibar/ui/OmnibarTrigger';
