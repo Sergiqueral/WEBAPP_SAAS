@@ -2,7 +2,7 @@
 
 import type { MolecularProjection } from '@/modules/codex/domain/types';
 import * as Dialog from '@radix-ui/react-dialog';
-import { AlertCircle, Check, Loader2, Sparkles } from 'lucide-react';
+import { AlertCircle, Check, Loader2, Sparkles, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useOmnibar } from '@/modules/codex/omnibar/hooks/useOmnibar';
 import { AutocompleteDropdown } from '@/modules/codex/omnibar/ui/AutocompleteDropdown';
@@ -106,7 +106,7 @@ export const OmnibarModal: React.FC<OmnibarModalProps> = ({
 
         {/* Contenedor del Modal */}
         <Dialog.Content className="
-          fixed top-[12%] left-1/2 z-50 w-[94vw] max-w-2xl -translate-x-1/2
+          fixed top-[6%] left-1/2 z-50 w-[94vw] max-w-2xl -translate-x-1/2
           animate-in rounded-2xl border border-border/80 bg-background/95 p-0
           shadow-2xl backdrop-blur-md transition-all duration-200 outline-none
           zoom-in-95 fade-in
@@ -172,6 +172,24 @@ export const OmnibarModal: React.FC<OmnibarModalProps> = ({
                       ↵ Enter
                     </kbd>
                   )}
+
+              <Dialog.Close asChild>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="
+                    flex size-8 shrink-0 items-center justify-center rounded-lg
+                    text-muted-foreground/70 transition-colors
+                    hover:bg-accent hover:text-foreground
+                    focus-visible:ring-2 focus-visible:ring-ring
+                    focus-visible:outline-hidden
+                  "
+                  aria-label="Cerrar omnibarra"
+                  title="Cerrar (Esc)"
+                >
+                  <X className="size-4" />
+                </button>
+              </Dialog.Close>
             </div>
 
             {/* Menú Desplegable de Autocompletado */}
@@ -269,9 +287,34 @@ export const OmnibarModal: React.FC<OmnibarModalProps> = ({
                 </span>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span>Esc para salir</span>
-              </div>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="
+                  flex items-center gap-1.5 rounded-md px-2 py-0.5
+                  text-muted-foreground/80 transition-colors
+                  hover:bg-accent hover:text-foreground
+                  focus-visible:ring-1 focus-visible:ring-ring
+                  focus-visible:outline-hidden
+                "
+                title="Cerrar omnibarra"
+              >
+                <X className="size-3" />
+                <span className="
+                  hidden
+                  sm:inline
+                "
+                >
+                  Esc para salir
+                </span>
+                <span className="
+                  font-medium
+                  sm:hidden
+                "
+                >
+                  Cerrar
+                </span>
+              </button>
             </div>
           </div>
         </Dialog.Content>

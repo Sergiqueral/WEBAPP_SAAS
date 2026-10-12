@@ -94,7 +94,12 @@ export function groupMoleculesByDate(
 
   for (const molecule of molecules) {
     const payload = (molecule.root.payload ?? {}) as Record<string, unknown>;
-    const dueDateStr = typeof payload.dueDate === 'string' ? payload.dueDate : null;
+    const metadata = (molecule.root.metadata ?? {}) as Record<string, unknown>;
+    const dueDateStr = typeof payload.dueDate === 'string'
+      ? payload.dueDate
+      : typeof metadata.due_date === 'string'
+        ? metadata.due_date
+        : null;
 
     if (!dueDateStr) {
       unscheduled.push(molecule);

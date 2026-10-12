@@ -30,7 +30,11 @@ export const MoleculeCard: React.FC<MoleculeCardProps> = ({
   const isNote = root.type === 'note';
   const isInbox = root.type === 'inbox';
 
-  const dueDateStr = typeof payload.dueDate === 'string' ? payload.dueDate : null;
+  const dueDateStr = typeof payload.dueDate === 'string'
+    ? payload.dueDate
+    : typeof root.metadata?.due_date === 'string'
+      ? root.metadata.due_date
+      : null;
   const dueInfo = React.useMemo(() => {
     if (!dueDateStr) {
       return null;

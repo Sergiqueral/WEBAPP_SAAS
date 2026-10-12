@@ -5,6 +5,8 @@ import { SynapseRepository } from '@/modules/codex/domain/repositories/SynapseRe
 import { AccessGuard } from '@/modules/codex/domain/security/AccessGuard';
 import { resolveTenantContext } from '@/modules/codex/domain/security/tenantContext';
 import { AccessDeniedError, UpdateAtomInputSchema } from '@/modules/codex/domain/types';
+import { OmnibarParser } from '@/modules/codex/omnibar/parser/OmnibarParser';
+import { OmnibarReactor } from '@/modules/codex/omnibar/reactor/OmnibarReactor';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -53,7 +55,49 @@ export async function PATCH(request: Request, props: RouteContext) {
     const body = await request.json();
     const validated = UpdateAtomInputSchema.parse(body);
 
-    const updatedAtom = await MoleculeRepository.updateAtom(tenantContext, id, validated);
+    let payloadPatch = { ...(validated.payload ?? {}) };
+    const metadataPatch = { ...(validated.metadata ?? {}) };
+
+    if (validated.rawText) {
+      const parsed = OmnibarParser.extractTokens(validated.rawText);
+      const cleanTitle = parsed.cleanText.trim() || validated.rawText.trim();
+      payloadPatch = {
+        ...payloadPatch,
+        title: cleanTitle,
+      };
+
+      if (parsed.temporal) {
+        payloadPatch.dueDate = parsed.temporal.date.toISOString();
+        metadataPatch.due_date = parsed.temporal.date.toISOString();
+        metadataPatch.has_time = parsed.temporal.hasTime;
+        metadataPatch.raw_expression = parsed.temporal.expression;
+      }
+
+      for (const ent of parsed.entities) {
+        const targetId = await OmnibarReactor.findOrCreateAtom(tenantContext, 'entity', ent.name);
+        await SynapseRepository.createSynapse(tenantContext, {
+          sourceAtomId: id,
+          targetAtomId: targetId,
+          relationType: 'ASSIGNED_TO',
+          metadata: { rawToken: ent.raw },
+        });
+      }
+
+      for (const ctx of parsed.contexts) {
+        const targetId = await OmnibarReactor.findOrCreateAtom(tenantContext, 'context', ctx.name);
+        await SynapseRepository.createSynapse(tenantContext, {
+          sourceAtomId: id,
+          targetAtomId: targetId,
+          relationType: 'TAGGED_WITH',
+          metadata: { rawToken: ctx.raw },
+        });
+      }
+    }
+
+    const updatedAtom = await MoleculeRepository.updateAtom(tenantContext, id, {
+      payload: payloadPatch,
+      metadata: metadataPatch,
+    });
 
     return NextResponse.json({ atom: updatedAtom });
   } catch (error) {

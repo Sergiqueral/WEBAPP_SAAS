@@ -132,6 +132,7 @@ export class OmnibarReactor {
       payload: {
         title: intent.coreAtom.title,
         ...(intent.coreAtom.content ? { content: intent.coreAtom.content } : {}),
+        ...(intent.temporal ? { dueDate: intent.temporal.dueDate.toISOString() } : {}),
         ...intent.coreAtom.payload,
       },
       metadata: coreMetadata,

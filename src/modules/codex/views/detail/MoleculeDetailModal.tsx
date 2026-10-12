@@ -22,6 +22,8 @@ import {
   X,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { OmnibarParser } from '@/modules/codex/omnibar/parser/OmnibarParser';
+import { MolecularFootprint } from '@/modules/codex/omnibar/ui/MolecularFootprint';
 
 export type MoleculeDetailModalProps = {
   atomId: string | null;
@@ -192,15 +194,19 @@ export const MoleculeDetailModal: React.FC<MoleculeDetailModalProps> = ({
     }
   };
 
-  // Guardar edición in-situ del título
+  // Guardar edición in-situ del título y sintaxis Omnibarra
   const handleSaveTitle = async () => {
     if (!molecule?.root || !editTitle.trim()) {
       return;
     }
     setIsSaving(true);
     setActionError(null);
+
+    const parsedTokens = OmnibarParser.extractTokens(editTitle.trim());
+    const cleanTitle = parsedTokens.cleanText.trim() || editTitle.trim();
+
     const currentPayload = (molecule.root.payload ?? {}) as Record<string, unknown>;
-    const updatedPayload = { ...currentPayload, title: editTitle.trim() };
+    const updatedPayload = { ...currentPayload, title: cleanTitle };
 
     const updatedRoot: Atom = {
       ...molecule.root,
@@ -214,15 +220,46 @@ export const MoleculeDetailModal: React.FC<MoleculeDetailModalProps> = ({
       const res = await fetch(`/api/v1/atoms/${molecule.root.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payload: { title: editTitle.trim() } }),
+        body: JSON.stringify({ rawText: editTitle.trim() }),
       });
       if (!res.ok) {
         throw new Error('Error al guardar título');
       }
       setIsEditing(false);
+      void fetchMolecule(molecule.root.id);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Error al guardar');
       void fetchMolecule(molecule.root.id);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Quitar fecha de vencimiento
+  const handleClearDueDate = async () => {
+    if (!molecule?.root) {
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const currentPayload = { ...((molecule.root.payload ?? {}) as Record<string, unknown>) };
+      delete currentPayload.dueDate;
+      const currentMetadata = { ...((molecule.root.metadata ?? {}) as Record<string, unknown>) };
+      delete currentMetadata.due_date;
+      delete currentMetadata.has_time;
+      delete currentMetadata.raw_expression;
+
+      const res = await fetch(`/api/v1/atoms/${molecule.root.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payload: currentPayload,
+          metadata: currentMetadata,
+        }),
+      });
+      if (res.ok) {
+        void fetchMolecule(molecule.root.id);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -300,10 +337,6 @@ export const MoleculeDetailModal: React.FC<MoleculeDetailModalProps> = ({
     }
   };
 
-  if (!isOpen) {
-    return null;
-  }
-
   const root = molecule?.root;
   const payload = (root?.payload ?? {}) as Record<string, unknown>;
   const isTask = root?.type === 'task';
@@ -318,6 +351,50 @@ export const MoleculeDetailModal: React.FC<MoleculeDetailModalProps> = ({
         : 'Sin título';
 
   const provenance = typeof root?.metadata?.provenance === 'string' ? root.metadata.provenance : 'manual';
+
+  const dueDateStr = typeof payload.dueDate === 'string'
+    ? payload.dueDate
+    : typeof root?.metadata?.due_date === 'string'
+      ? root.metadata.due_date
+      : null;
+
+  const dueInfo = React.useMemo(() => {
+    if (!dueDateStr) {
+      return null;
+    }
+    const due = new Date(dueDateStr);
+    if (Number.isNaN(due.getTime())) {
+      return null;
+    }
+
+    const now = new Date();
+    const isOverdue = due.getTime() < now.getTime() && !isDone;
+    const isToday = due.toDateString() === now.toDateString();
+
+    const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    let label = '';
+    if (isToday) {
+      label = `Hoy ${due.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    } else if (diffDays === 1) {
+      label = `Mañana ${due.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    } else if (diffDays === -1) {
+      label = 'Ayer';
+    } else {
+      label = due.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    return { label, isOverdue, isToday };
+  }, [dueDateStr, isDone]);
+
+  const liveTokens = React.useMemo(() => {
+    if (!isEditing || !editTitle.trim()) {
+      return null;
+    }
+    return OmnibarParser.extractTokens(editTitle);
+  }, [isEditing, editTitle]);
+  const hasLiveTokens = Boolean(
+    liveTokens && (liveTokens.temporal || liveTokens.entities.length > 0 || liveTokens.contexts.length > 0),
+  );
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={open => !open && handleClose()}>
@@ -508,41 +585,71 @@ export const MoleculeDetailModal: React.FC<MoleculeDetailModalProps> = ({
                           <div className="flex-1">
                             {isEditing
                               ? (
-                                  <div className="flex items-center gap-2">
-                                    <input
-                                      type="text"
-                                      value={editTitle}
-                                      onChange={e => setEditTitle(e.target.value)}
-                                      className="
-                                        flex-1 rounded-lg border border-primary
-                                        bg-background px-3 py-1.5 text-base
-                                        font-semibold text-foreground
-                                        focus:outline-hidden
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="text"
+                                        value={editTitle}
+                                        onChange={e => setEditTitle(e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            void handleSaveTitle();
+                                          } else if (e.key === 'Escape') {
+                                            setIsEditing(false);
+                                          }
+                                        }}
+                                        placeholder="Título... usa @ // #"
+                                        className="
+                                          flex-1 rounded-lg border
+                                          border-primary bg-background px-3
+                                          py-1.5 text-base font-semibold
+                                          text-foreground
+                                          focus:outline-hidden
+                                        "
+                                        autoFocus
+                                      />
+                                      <button
+                                        type="button"
+                                        disabled={isSaving}
+                                        onClick={handleSaveTitle}
+                                        className="
+                                          rounded-lg bg-primary px-3 py-1.5
+                                          text-xs font-medium
+                                          text-primary-foreground
+                                        "
+                                      >
+                                        {isSaving ? 'Guardando...' : 'Guardar'}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setIsEditing(false)}
+                                        className="
+                                          rounded-lg border px-3 py-1.5 text-xs
+                                          font-medium text-muted-foreground
+                                        "
+                                      >
+                                        Cancelar
+                                      </button>
+                                    </div>
+
+                                    {hasLiveTokens && liveTokens && (
+                                      <div className="
+                                        rounded-xl border border-primary/20
+                                        bg-primary/5 p-2 text-xs
                                       "
-                                      autoFocus
-                                    />
-                                    <button
-                                      type="button"
-                                      disabled={isSaving}
-                                      onClick={handleSaveTitle}
-                                      className="
-                                        rounded-lg bg-primary px-3 py-1.5
-                                        text-xs font-medium
-                                        text-primary-foreground
-                                      "
-                                    >
-                                      {isSaving ? 'Guardando...' : 'Guardar'}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setIsEditing(false)}
-                                      className="
-                                        rounded-lg border px-3 py-1.5 text-xs
-                                        font-medium text-muted-foreground
-                                      "
-                                    >
-                                      Cancelar
-                                    </button>
+                                      >
+                                        <div className="
+                                          mb-1 text-[10px] font-semibold
+                                          tracking-wider text-muted-foreground
+                                          uppercase
+                                        "
+                                        >
+                                          Sintaxis detectada (se aplicará al guardar)
+                                        </div>
+                                        <MolecularFootprint tokens={liveTokens} />
+                                      </div>
+                                    )}
                                   </div>
                                 )
                               : (
@@ -559,12 +666,15 @@ export const MoleculeDetailModal: React.FC<MoleculeDetailModalProps> = ({
                                     </Dialog.Title>
                                     <button
                                       type="button"
-                                      onClick={() => setIsEditing(true)}
+                                      onClick={() => {
+                                        setEditTitle(title);
+                                        setIsEditing(true);
+                                      }}
                                       className="
                                         text-muted-foreground transition-colors
                                         hover:text-foreground
                                       "
-                                      title="Editar título"
+                                      title="Editar título (soporta @ // #)"
                                     >
                                       <Edit2 className="size-3.5" />
                                     </button>
@@ -583,6 +693,42 @@ export const MoleculeDetailModal: React.FC<MoleculeDetailModalProps> = ({
                               >
                                 {root.type}
                               </span>
+
+                              {dueDateStr && (
+                                <span className={`
+                                  flex items-center gap-1.5 rounded-md px-2
+                                  py-0.5 text-xs font-semibold
+                                  ${isDone
+                                  ? 'bg-muted text-muted-foreground'
+                                  : dueInfo?.isOverdue
+                                    ? `
+                                      border border-destructive/20
+                                      bg-destructive/10 text-destructive
+                                    `
+                                    : `
+                                      border border-emerald-500/20
+                                      bg-emerald-500/10 text-emerald-700
+                                      dark:text-emerald-400
+                                    `
+                                }
+                                `}
+                                >
+                                  <Calendar className="size-3" />
+                                  <span>{dueInfo?.label ?? dueDateStr}</span>
+                                  <button
+                                    type="button"
+                                    onClick={handleClearDueDate}
+                                    className="
+                                      ml-1 opacity-60
+                                      hover:text-destructive hover:opacity-100
+                                    "
+                                    title="Quitar fecha"
+                                  >
+                                    <X className="size-2.5" />
+                                  </button>
+                                </span>
+                              )}
+
                               <span className="
                                 flex items-center gap-1 text-xs
                                 text-muted-foreground
