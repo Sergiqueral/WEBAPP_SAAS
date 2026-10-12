@@ -1,3 +1,4 @@
+import type { MolecularProjection } from '../domain/types';
 import type { Atom, Link, TenantContext } from '@/modules/codex/domain/types';
 import { describe, expect, it } from 'vitest';
 import { AccessDeniedError, AccessGuard } from '@/modules/codex/domain/security/AccessGuard';
@@ -7,6 +8,7 @@ import {
   SynapseInputSchema,
   TenantContextSchema,
 } from '@/modules/codex/domain/types';
+import { calculateCellMetrics } from '../domain/cell/cellMetrics';
 
 describe('Biología del Dato: Núcleo de Almacenamiento (Fase 1)', () => {
   describe('Contratos de Dominio y Normalización (Zod)', () => {
@@ -188,6 +190,74 @@ describe('Biología del Dato: Núcleo de Almacenamiento (Fase 1)', () => {
       };
 
       expect(AccessGuard.canReadAtom(guestContext, sharedAtom, [sharingSynapse])).toBe(true);
+    });
+  });
+
+  describe('Célula Biológica y Métricas Metabólicas (Paso 3)', () => {
+    it('calcula métricas en cero si no hay moléculas', () => {
+      const metrics = calculateCellMetrics([]);
+
+      expect(metrics.total).toBe(0);
+      expect(metrics.completed).toBe(0);
+      expect(metrics.pending).toBe(0);
+      expect(metrics.completionPercentage).toBe(0);
+      expect(metrics.collaborators).toHaveLength(0);
+    });
+
+    it('calcula porcentaje y colaboradores a partir de sinapsis', () => {
+      const entityCarlos: Atom = {
+        id: 'entity-carlos',
+        organizationId: 'org-1',
+        type: 'entity',
+        payload: { name: 'Carlos' },
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const mol1: MolecularProjection = {
+        root: {
+          id: 'task-1',
+          organizationId: 'org-1',
+          type: 'task',
+          payload: { title: 'Diseñar logo', status: 'done' },
+          metadata: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        outgoing: [{
+          linkId: 'l1',
+          relationType: 'ASSIGNED_TO',
+          metadata: {},
+          atom: entityCarlos,
+        }],
+        incoming: [],
+        externalIdentities: [],
+      };
+
+      const mol2: MolecularProjection = {
+        root: {
+          id: 'task-2',
+          organizationId: 'org-1',
+          type: 'task',
+          payload: { title: 'Implementar UI', status: 'pending' },
+          metadata: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        outgoing: [],
+        incoming: [],
+        externalIdentities: [],
+      };
+
+      const metrics = calculateCellMetrics([mol1, mol2], 'cell-marketing');
+
+      expect(metrics.total).toBe(2);
+      expect(metrics.completed).toBe(1);
+      expect(metrics.pending).toBe(1);
+      expect(metrics.completionPercentage).toBe(50);
+      expect(metrics.collaborators).toHaveLength(1);
+      expect(metrics.collaborators[0]?.id).toBe('entity-carlos');
     });
   });
 });

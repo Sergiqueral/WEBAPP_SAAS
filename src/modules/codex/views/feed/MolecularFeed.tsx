@@ -14,9 +14,11 @@ import {
   RefreshCw,
   Sparkles,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { calculateCellMetrics } from '../../domain/cell/cellMetrics';
 import { MobileFloatingActionButton } from '../../omnibar/ui/MobileFloatingActionButton';
 import { MolecularCalendarView } from '../calendar/MolecularCalendarView';
+import { CellHeader } from '../cell/CellHeader';
 import { ContextFilterBar } from '../components/ContextFilterBar';
 import { ViewModeSwitcher } from '../components/ViewModeSwitcher';
 import { MoleculeDetailModal } from '../detail/MoleculeDetailModal';
@@ -47,7 +49,7 @@ export const MolecularFeed: React.FC = () => {
       const params = new URLSearchParams();
       params.set('type', activeTab);
       // En modo kanban o calendario se requieren todos los estados para poblar columnas y agenda
-      const effectiveStatus = viewMode === 'list' ? statusFilter : 'all';
+      const effectiveStatus = (activeFilterAtom || viewMode !== 'list') ? 'all' : statusFilter;
       params.set('status', effectiveStatus);
       if (activeFilterAtom?.id) {
         params.set('targetAtomId', activeFilterAtom.id);
@@ -228,6 +230,30 @@ export const MolecularFeed: React.FC = () => {
     setActiveFilterAtom(prev => (prev?.id === atom.id ? null : atom));
   };
 
+  // Métricas biológicas de la Célula activa
+  const cellMetrics = useMemo(() => {
+    if (!activeFilterAtom) {
+      return null;
+    }
+    return calculateCellMetrics(molecules, activeFilterAtom.id);
+  }, [activeFilterAtom, molecules]);
+
+  // Moléculas a mostrar en la vista de lista respetando el filtro de estado local cuando hay célula activa
+  const displayedMolecules = useMemo(() => {
+    if (viewMode !== 'list' || !activeFilterAtom) {
+      return molecules;
+    }
+    if (statusFilter === 'all') {
+      return molecules;
+    }
+    return molecules.filter((mol) => {
+      const payload = (mol.root.payload ?? {}) as Record<string, unknown>;
+      return statusFilter === 'done'
+        ? payload.status === 'done'
+        : payload.status !== 'done';
+    });
+  }, [molecules, viewMode, activeFilterAtom, statusFilter]);
+
   return (
     <div className="w-full space-y-4">
       {/* Barra superior de pestañas y controles */}
@@ -401,23 +427,36 @@ export const MolecularFeed: React.FC = () => {
         </div>
       </div>
 
-      {/* Barra de Filtro de Contexto / Grafo Biológico */}
-      <ContextFilterBar
-        activeFilterAtom={activeFilterAtom}
-        matchCount={molecules.length}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        onClearFilter={() => setActiveFilterAtom(null)}
-        onSelectFilter={atomStub => handleFilterByAtom({
-          id: atomStub.id,
-          organizationId: '',
-          type: atomStub.type,
-          payload: { name: atomStub.name },
-          metadata: {},
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        })}
-      />
+      {/* Célula Biológica Activa (Contexto # o Entidad @) o Barra de Filtros */}
+      {activeFilterAtom && cellMetrics
+        ? (
+            <CellHeader
+              cellAtom={activeFilterAtom}
+              metrics={cellMetrics}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+              onClearCell={() => setActiveFilterAtom(null)}
+              onSelectCollaborator={handleFilterByAtom}
+            />
+          )
+        : (
+            <ContextFilterBar
+              activeFilterAtom={activeFilterAtom}
+              matchCount={molecules.length}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+              onClearFilter={() => setActiveFilterAtom(null)}
+              onSelectFilter={atomStub => handleFilterByAtom({
+                id: atomStub.id,
+                organizationId: '',
+                type: atomStub.type,
+                payload: { name: atomStub.name },
+                metadata: {},
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              })}
+            />
+          )}
 
       {/* Mensaje de Error */}
       {error && (
@@ -462,7 +501,7 @@ export const MolecularFeed: React.FC = () => {
                   onOpenDetail={handleOpenDetail}
                 />
               )
-            : molecules.length === 0
+            : displayedMolecules.length === 0
               ? (
                   <div className="
                     flex flex-col items-center justify-center rounded-2xl border
@@ -573,7 +612,7 @@ export const MolecularFeed: React.FC = () => {
                 )
               : (
                   <div className="flex flex-col gap-2.5">
-                    {molecules.map(molecule => (
+                    {displayedMolecules.map(molecule => (
                       <MoleculeCard
                         key={molecule.root.id}
                         molecule={molecule}
