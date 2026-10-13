@@ -213,12 +213,39 @@ export type ParsedConditionToken = {
   endIndex: number;
 };
 
+export type ParsedDocumentType = 'dni' | 'nie' | 'cif';
+
+export type ParsedDocumentToken = {
+  raw: string; // ej. "12345678Z", "B12345678", "X1234567L"
+  documentNumber: string; // normalizado sin espacios ni guiones en mayúsculas
+  type: ParsedDocumentType;
+  isValid: boolean;
+  startIndex: number;
+  endIndex: number;
+};
+
+export type ParsedLocationType = 'coordinates' | 'plus_code' | 'address';
+
+export type ParsedLocationToken = {
+  raw: string; // ej. "40.8123, 0.5214", "8FX28399+Q2", "Calle Mayor 12"
+  type: ParsedLocationType;
+  normalized: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
+  startIndex: number;
+  endIndex: number;
+};
+
 export type ParsedTokens = {
   entities: ParsedEntityToken[];
   contexts: ParsedContextToken[];
   temporal?: ParsedTemporalToken;
   phones: ParsedPhoneToken[];
   emails: ParsedEmailToken[];
+  documents: ParsedDocumentToken[];
+  locations: ParsedLocationToken[];
   actions: ParsedActionToken[];
   conditions: ParsedConditionToken[];
   cleanText: string;

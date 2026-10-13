@@ -1,7 +1,7 @@
 'use client';
 
 import type { Atom } from '@/modules/codex/domain/types';
-import { Filter, Hash, User, X } from 'lucide-react';
+import { Filter, Hash, Sparkles, User, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 type ContextFilterBarProps = {
@@ -11,12 +11,14 @@ type ContextFilterBarProps = {
   onStatusFilterChange?: (status: 'all' | 'done' | 'pending') => void;
   onClearFilter: () => void;
   onSelectFilter: (atom: { id: string; name: string; type: string }) => void;
+  onOpenEntityLens?: (atom: Atom) => void;
 };
 
 export const ContextFilterBar: React.FC<ContextFilterBarProps> = ({
   activeFilterAtom,
   matchCount,
   onClearFilter,
+  onOpenEntityLens,
   onSelectFilter,
   onStatusFilterChange,
   statusFilter,
@@ -131,20 +133,39 @@ export const ContextFilterBar: React.FC<ContextFilterBarProps> = ({
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={onClearFilter}
-                className="
-                  inline-flex items-center gap-1 rounded-lg border
-                  border-border/80 bg-background px-2.5 py-1 text-xs font-medium
-                  text-muted-foreground transition-colors
-                  hover:bg-accent hover:text-foreground
-                "
-                title="Quitar filtro de grafo"
-              >
-                <X className="size-3.5" />
-                <span>Quitar filtro</span>
-              </button>
+              <div className="flex items-center gap-2">
+                {isEntity && onOpenEntityLens && activeFilterAtom && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenEntityLens(activeFilterAtom)}
+                    className="
+                      inline-flex items-center gap-1.5 rounded-lg border
+                      border-primary/30 bg-primary/10 px-2.5 py-1 text-xs
+                      font-semibold text-primary transition-colors
+                      hover:bg-primary/20
+                    "
+                    title="Abrir Lente Molecular de este cliente"
+                  >
+                    <Sparkles className="size-3.5" />
+                    <span>Ver Ficha de Cliente</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={onClearFilter}
+                  className="
+                    inline-flex items-center gap-1 rounded-lg border
+                    border-border/80 bg-background px-2.5 py-1 text-xs
+                    font-medium text-muted-foreground transition-colors
+                    hover:bg-accent hover:text-foreground
+                  "
+                  title="Quitar filtro de grafo"
+                >
+                  <X className="size-3.5" />
+                  <span>Quitar filtro</span>
+                </button>
+              </div>
             </div>
           )
         : (

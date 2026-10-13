@@ -4,8 +4,11 @@ import type {
   ParsedActionType,
   ParsedConditionToken,
   ParsedContextToken,
+  ParsedDocumentToken,
+  ParsedDocumentType,
   ParsedEmailToken,
   ParsedEntityToken,
+  ParsedLocationToken,
   ParsedPhoneToken,
   ParsedTemporalToken,
   ParsedTokens,
@@ -24,6 +27,103 @@ const PHONE_REGEX = /(?:\+|00)\d{1,3}[\s.-]?(?:\(?\d{1,4}\)?[\s.-]?)?(?:\d[\s.-]
 
 // Regex de Correos Electrónicos
 const EMAIL_REGEX = /(?<!\w)[\w.%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
+
+// Regex de Identificadores Fiscales Españoles (DNI, NIE, CIF)
+const DOCUMENT_REGEX = /\b(?:\d{8}[-\s]?[A-Z]|[XYZ][-\s]?\d{7}[-\s]?[A-Z]|[A-HJNP-SUVW][-\s]?\d{7}[-\s]?[0-9A-J])\b/gi;
+
+// Regex de Coordenadas GPS (Latitud, Longitud decimales)
+const GPS_REGEX = /(?<![\w/])([-+]?(?:[1-8]?\d\.\d+|90(?:\.0+)?))\s*,\s*([-+]?(?:180(?:\.0+)?|(?:1[0-7]\d|\d{1,2})\.\d+))(?![\w/])/g;
+
+// Regex de Google Maps Plus Codes (Open Location Code) con localidad opcional (ej: 8FX28399+Q2 o 8399+Q2 Tortosa)
+const PLUS_CODE_REGEX = /\b([2-9CFGHJMPQRVWXcfghjmpqrvwx]{4,8}\+[2-9CFGHJMPQRVWXcfghjmpqrvwx]{2,3})(?:\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*))?\b/g;
+
+// Regex de Direcciones viales en español
+const ADDRESS_REGEX = /\b(?:c\/|calle|avda\.?|avenida|pza\.?|plaza|paseo|ps\.?|ctra\.?|carretera|pol[íi]gono|travessera|traves[íi]a|rambla|camino|v[íi]a)\s[A-ZÁÉÍÓÚÑ0-9.,\s'-]+?\b(?:\d{1,5}(?:\s*(?:bis|[ºªa-z]))?|nave\s*\d+|km\s*\d+)(?:\s*(?:,\s*)?(?:cp\s*)?\b\d{5}\b)?(?:\s*(?:,\s*)?[a-záéíóúñ]{2,})?(?=\s+(?:el|la|los|para|con|por|de|en|[a#@]|\/\/|$|\.\s)|$)/gi;
+
+const DNI_LETTERS = 'TRWAGMYFPDXBNJZSQVHLCKE';
+
+/**
+ * Validador algorítmico oficial para documentos de identidad fiscal en España (DNI, NIE, CIF).
+ */
+function validateSpanishDocument(raw: string): {
+  isValid: boolean;
+  type: ParsedDocumentType;
+  normalized: string;
+} | null {
+  const cleaned = raw.toUpperCase().replace(/[\s-]/g, '');
+
+  // 1. DNI: 8 dígitos + 1 letra
+  const dniMatch = cleaned.match(/^(\d{8})([A-Z])$/);
+  if (dniMatch && dniMatch[1] && dniMatch[2]) {
+    const num = Number.parseInt(dniMatch[1], 10);
+    const letter = dniMatch[2];
+    const expectedLetter = DNI_LETTERS[num % 23];
+    return {
+      isValid: letter === expectedLetter,
+      type: 'dni',
+      normalized: cleaned,
+    };
+  }
+
+  // 2. NIE: X, Y o Z + 7 dígitos + 1 letra
+  const nieMatch = cleaned.match(/^([XYZ])(\d{7})([A-Z])$/);
+  if (nieMatch && nieMatch[1] && nieMatch[2] && nieMatch[3]) {
+    const prefixLetter = nieMatch[1];
+    const numPart = nieMatch[2];
+    const letter = nieMatch[3];
+    const prefixDigit = prefixLetter === 'X' ? '0' : prefixLetter === 'Y' ? '1' : '2';
+    const fullNum = Number.parseInt(`${prefixDigit}${numPart}`, 10);
+    const expectedLetter = DNI_LETTERS[fullNum % 23];
+    return {
+      isValid: letter === expectedLetter,
+      type: 'nie',
+      normalized: cleaned,
+    };
+  }
+
+  // 3. CIF: 1 letra (ABCDEFGHJNPQRSUVW) + 7 dígitos + 1 carácter de control (dígito o letra)
+  const cifMatch = cleaned.match(/^([A-HJNP-SUVW])(\d{7})([0-9A-J])$/);
+  if (cifMatch && cifMatch[1] && cifMatch[2] && cifMatch[3]) {
+    const letter = cifMatch[1];
+    const digits = cifMatch[2];
+    const control = cifMatch[3];
+
+    // Posiciones pares (índices 1, 3, 5)
+    let sumEven = 0;
+    for (let i = 1; i < 7; i += 2) {
+      sumEven += Number.parseInt(digits[i]!, 10);
+    }
+
+    // Posiciones impares (índices 0, 2, 4, 6)
+    let sumOdd = 0;
+    for (let i = 0; i < 7; i += 2) {
+      const doubled = Number.parseInt(digits[i]!, 10) * 2;
+      sumOdd += doubled >= 10 ? doubled - 9 : doubled;
+    }
+
+    const sumTotal = sumEven + sumOdd;
+    const lastDigit = sumTotal % 10;
+    const expectedDigit = lastDigit === 0 ? 0 : 10 - lastDigit;
+    const expectedLetter = 'JABCDEFGHI'[expectedDigit];
+
+    let isValid = false;
+    if (['A', 'B', 'E', 'H'].includes(letter)) {
+      isValid = control === String(expectedDigit);
+    } else if (['P', 'Q', 'S', 'R', 'W'].includes(letter)) {
+      isValid = control === expectedLetter;
+    } else {
+      isValid = control === String(expectedDigit) || control === expectedLetter;
+    }
+
+    return {
+      isValid,
+      type: 'cif',
+      normalized: cleaned,
+    };
+  }
+
+  return null;
+}
 
 // Catálogo de Verbos de Acción Operativos en Español
 const ACTION_DEFINITIONS: Array<{
@@ -170,6 +270,8 @@ function normalizePhoneNumber(raw: string): string {
 }
 
 export class OmnibarParser {
+  static validateSpanishDocument = validateSpanishDocument;
+
   /**
    * Extrae anclajes (teléfonos, correos, verbos, condiciones), tokens (@entidad, //fecha, #contexto)
    * y texto limpio del input del usuario.
@@ -183,6 +285,8 @@ export class OmnibarParser {
     const contexts: ParsedContextToken[] = [];
     const phones: ParsedPhoneToken[] = [];
     const emails: ParsedEmailToken[] = [];
+    const documents: ParsedDocumentToken[] = [];
+    const locations: ParsedLocationToken[] = [];
     const actions: ParsedActionToken[] = [];
     const conditions: ParsedConditionToken[] = [];
     let temporal: ParsedTemporalToken | undefined;
@@ -215,7 +319,33 @@ export class OmnibarParser {
       occupiedRanges.push({ start: startIndex, end: endIndex });
     }
 
-    // 2. EXTRAER TELÉFONOS
+    // 2. EXTRAER IDENTIFICADORES FISCALES ESPAÑOLES (DNI, NIE, CIF)
+    const docMatches = Array.from(rawText.matchAll(DOCUMENT_REGEX));
+    for (const match of docMatches) {
+      if (match.index === undefined) {
+        continue;
+      }
+      const raw = match[0];
+      const startIndex = match.index;
+      const endIndex = startIndex + raw.length;
+
+      if (!isOccupied(startIndex, endIndex)) {
+        const validated = validateSpanishDocument(raw);
+        if (validated) {
+          documents.push({
+            raw,
+            documentNumber: validated.normalized,
+            type: validated.type,
+            isValid: validated.isValid,
+            startIndex,
+            endIndex,
+          });
+          occupiedRanges.push({ start: startIndex, end: endIndex });
+        }
+      }
+    }
+
+    // 3. EXTRAER TELÉFONOS
     const phoneMatches = Array.from(rawText.matchAll(PHONE_REGEX));
     for (const match of phoneMatches) {
       if (match.index === undefined) {
@@ -236,7 +366,80 @@ export class OmnibarParser {
       }
     }
 
-    // 3. EXTRAER TEMPORAL EXPLÍCITO (//...)
+    // 4. EXTRAER COORDENADAS GPS (Latitud, Longitud)
+    const gpsMatches = Array.from(rawText.matchAll(GPS_REGEX));
+    for (const match of gpsMatches) {
+      if (match.index === undefined || !match[1] || !match[2]) {
+        continue;
+      }
+      const raw = match[0];
+      const startIndex = match.index;
+      const endIndex = startIndex + raw.length;
+
+      if (!isOccupied(startIndex, endIndex)) {
+        const lat = Number.parseFloat(match[1]);
+        const lng = Number.parseFloat(match[2]);
+        if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+          locations.push({
+            raw,
+            type: 'coordinates',
+            normalized: `${lat}, ${lng}`,
+            coordinates: { lat, lng },
+            startIndex,
+            endIndex,
+          });
+          occupiedRanges.push({ start: startIndex, end: endIndex });
+        }
+      }
+    }
+
+    // 5. EXTRAER GOOGLE MAPS PLUS CODES
+    const plusMatches = Array.from(rawText.matchAll(PLUS_CODE_REGEX));
+    for (const match of plusMatches) {
+      if (match.index === undefined || !match[1]) {
+        continue;
+      }
+      const raw = match[0];
+      const startIndex = match.index;
+      const endIndex = startIndex + raw.length;
+
+      if (!isOccupied(startIndex, endIndex)) {
+        const code = match[1].toUpperCase();
+        const city = match[2]?.trim();
+        locations.push({
+          raw,
+          type: 'plus_code',
+          normalized: city ? `${code} ${city}` : code,
+          startIndex,
+          endIndex,
+        });
+        occupiedRanges.push({ start: startIndex, end: endIndex });
+      }
+    }
+
+    // 6. EXTRAER DIRECCIONES VIALES EN ESPAÑOL
+    const addressMatches = Array.from(rawText.matchAll(ADDRESS_REGEX));
+    for (const match of addressMatches) {
+      if (match.index === undefined) {
+        continue;
+      }
+      const raw = match[0];
+      const startIndex = match.index;
+      const endIndex = startIndex + raw.length;
+
+      if (!isOccupied(startIndex, endIndex)) {
+        locations.push({
+          raw,
+          type: 'address',
+          normalized: raw.trim().replace(/\s+/g, ' '),
+          startIndex,
+          endIndex,
+        });
+        occupiedRanges.push({ start: startIndex, end: endIndex });
+      }
+    }
+
+    // 7. EXTRAER TEMPORAL EXPLÍCITO (//...)
     const temporalRegex = /\/\/([^\s#@][^#@]*)/g;
     const temporalMatches = Array.from(rawText.matchAll(temporalRegex));
 
@@ -531,6 +734,8 @@ export class OmnibarParser {
       temporal,
       phones,
       emails,
+      documents,
+      locations,
       actions,
       conditions,
       cleanText,
@@ -547,13 +752,16 @@ export class OmnibarParser {
     const tokens = this.extractTokens(text, options);
 
     const isOperative = tokens.actions.length > 0 || !!tokens.temporal;
-    const hasContactAnchor = tokens.phones.length > 0 || tokens.emails.length > 0;
+    const hasContactAnchor
+      = tokens.phones.length > 0
+        || tokens.emails.length > 0
+        || tokens.documents.some(d => d.isValid);
     const hasEntity = tokens.entities.length > 0;
     const hasContext = tokens.contexts.length > 0;
 
     // Regla Biológica de Arquetipos de Átomo:
     // 1. Si hay acción operativa o temporal -> 'task'
-    // 2. Si hay entidad + anclaje de contacto (tel/email) sin acción ni fecha -> 'client' (Ficha emergente)
+    // 2. Si hay entidad + anclaje de contacto (tel/email/documento) sin acción ni fecha -> 'client' (Ficha emergente)
     // 3. Si hay entidad o contexto sin acción -> 'note'
     // 4. Si no hay anclajes -> 'inbox'
     let coreType = 'inbox';
@@ -615,6 +823,34 @@ export class OmnibarParser {
       });
     }
 
+    // Sinapsis de Documentos Fiscales (DNI, NIE, CIF) -> HAS_DOCUMENT
+    for (const doc of tokens.documents) {
+      synapses.push({
+        relationType: 'HAS_DOCUMENT',
+        targetEntityName: doc.documentNumber,
+        targetType: 'anchor_document',
+        metadata: {
+          raw: doc.raw,
+          type: doc.type,
+          isValid: doc.isValid,
+        },
+      });
+    }
+
+    // Sinapsis de Ubicación (GPS, Plus Code, Dirección) -> AT_LOCATION
+    for (const loc of tokens.locations) {
+      synapses.push({
+        relationType: 'AT_LOCATION',
+        targetEntityName: loc.normalized,
+        targetType: 'anchor_location',
+        metadata: {
+          raw: loc.raw,
+          type: loc.type,
+          ...(loc.coordinates ? { coordinates: loc.coordinates } : {}),
+        },
+      });
+    }
+
     // Temporal
     const temporalData = tokens.temporal
       ? {
@@ -634,6 +870,12 @@ export class OmnibarParser {
           raw: text,
           phones: tokens.phones.map(p => p.number),
           emails: tokens.emails.map(e => e.email),
+          documents: tokens.documents.filter(d => d.isValid).map(d => d.documentNumber),
+          locations: tokens.locations.map(l => ({
+            type: l.type,
+            normalized: l.normalized,
+            ...(l.coordinates ? { coordinates: l.coordinates } : {}),
+          })),
           actions: tokens.actions.map(a => a.action),
           conditions: tokens.conditions.map(c => c.expression),
           isTentative: tokens.conditions.length > 0,

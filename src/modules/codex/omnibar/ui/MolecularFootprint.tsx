@@ -2,13 +2,16 @@
 
 import type { ParsedTokens } from '@/modules/codex/domain/types';
 import {
+  AlertCircle,
   Calendar,
   CheckCircle2,
+  CreditCard,
   FileText,
   Hash,
   HelpCircle,
   Inbox,
   Mail,
+  MapPin,
   Phone,
   User,
   UserCheck,
@@ -30,24 +33,27 @@ export const MolecularFootprint: React.FC<MolecularFootprintProps> = ({
     cleanText,
     conditions = [],
     contexts = [],
+    documents = [],
     emails = [],
     entities = [],
+    locations = [],
     phones = [],
     temporal,
   } = tokens;
 
   // Determinar la naturaleza del átomo central (Arquetipo)
   const isOperative = actions.length > 0 || !!temporal;
-  const hasContactAnchor = phones.length > 0 || emails.length > 0;
+  const hasContactAnchor = phones.length > 0 || emails.length > 0 || documents.length > 0;
   const hasEntity = entities.length > 0;
   const hasContext = contexts.length > 0;
+  const hasLocation = locations.length > 0;
 
   let atomType: 'task' | 'client' | 'note' | 'inbox' = 'inbox';
   if (isOperative) {
     atomType = 'task';
   } else if (hasContactAnchor && hasEntity) {
     atomType = 'client';
-  } else if (hasEntity || hasContext) {
+  } else if (hasEntity || hasContext || hasLocation) {
     atomType = 'note';
   }
 
@@ -161,6 +167,62 @@ export const MolecularFootprint: React.FC<MolecularFootprintProps> = ({
           >
             <Mail className="size-3" />
             <span>{e.email}</span>
+          </span>
+        ))}
+
+        {/* Huella de Documento Fiscal (🪪 DNI/NIE/CIF) */}
+        {documents.map(doc => (
+          <span
+            key={`doc-${doc.startIndex}-${doc.documentNumber}`}
+            className={`
+              inline-flex items-center gap-1 rounded-full border px-2 py-0.5
+              font-medium transition-all duration-150
+              ${
+          doc.isValid
+            ? `
+              border-violet-500/25 bg-violet-500/10 text-violet-600
+              dark:text-violet-400
+            `
+            : `
+              border-amber-500/25 bg-amber-500/10 text-amber-600
+              dark:text-amber-400
+            `
+          }
+            `}
+          >
+            {doc.isValid
+              ? <CreditCard className="size-3" />
+              : (
+                  <AlertCircle className="size-3" />
+                )}
+            <span>
+              {doc.type.toUpperCase()}
+              :
+              {doc.documentNumber}
+              {!doc.isValid ? ' (!)' : ''}
+            </span>
+          </span>
+        ))}
+
+        {/* Huella de Ubicación Geográfica (📍 GPS / Plus Code / Dirección) */}
+        {locations.map(loc => (
+          <span
+            key={`loc-${loc.startIndex}-${loc.normalized}`}
+            className="
+              inline-flex items-center gap-1 rounded-full border
+              border-rose-500/25 bg-rose-500/10 px-2 py-0.5 font-medium
+              text-rose-600 transition-all duration-150
+              dark:text-rose-400
+            "
+          >
+            <MapPin className="size-3" />
+            <span>
+              {loc.type === 'coordinates'
+                ? `GPS: ${loc.normalized}`
+                : loc.type === 'plus_code'
+                  ? `PlusCode: ${loc.normalized}`
+                  : loc.normalized}
+            </span>
           </span>
         ))}
 

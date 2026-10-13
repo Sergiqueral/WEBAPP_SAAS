@@ -58,7 +58,7 @@ export class MoleculeRepository {
 
     if (type !== 'all') {
       conditions.push(eq(atomsSchema.type, type.toLowerCase()));
-    } else {
+    } else if (!targetAtomId) {
       // Por defecto el feed principal muestra tareas, notas e inbox
       conditions.push(inArray(atomsSchema.type, ['task', 'note', 'inbox']));
     }

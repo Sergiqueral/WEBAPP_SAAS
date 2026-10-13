@@ -1,6 +1,7 @@
-import type { MolecularProjection } from '@/modules/codex/domain/types';
+import type { Atom, MolecularProjection } from '@/modules/codex/domain/types';
 import { describe, expect, it } from 'vitest';
 import {
+  aggregateEntityIdentity,
   formatDateKey,
   getAtomStatus,
   getMonthLabel,
@@ -223,6 +224,133 @@ describe('Vistas Multimodales - Helpers de Agrupación y Clasificación (Hito 5.
 
       expect(connected).toHaveLength(1);
       expect(connected[0]?.root.id).toBe('task-1');
+    });
+  });
+
+  describe('Lente Molecular de Cliente - Agregación de Identidad y Átomos Dispersos (EntityLens)', () => {
+    it('agrega anclajes duros, documentos fiscales y clasifica átomos en clusters moleculares', () => {
+      const clientAtom: Atom = {
+        id: 'client-1',
+        organizationId: 'org-test',
+        type: 'client',
+        payload: {
+          name: 'Jose Martines',
+          phones: ['+34610932115'],
+          documents: [{ documentNumber: '12345678Z', type: 'DNI', isValid: true }],
+          locations: [{ normalized: 'c/ Pau Casals 12, Tortosa', type: 'address' }],
+        },
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const taskMol: MolecularProjection = {
+        root: {
+          id: 'task-10',
+          organizationId: 'org-test',
+          type: 'task',
+          payload: {
+            title: 'Llamar al 610932115 el miércoles para confirmar oferta',
+            status: 'pending',
+            dueDate: '2026-10-15T10:00:00Z',
+          },
+          metadata: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        outgoing: [],
+        incoming: [],
+        externalIdentities: [],
+      };
+
+      const docMol: MolecularProjection = {
+        root: {
+          id: 'doc-1',
+          organizationId: 'org-test',
+          type: 'note',
+          payload: {
+            title: 'Presupuesto instalación fotovoltaica',
+            documents: [{ documentNumber: 'B12345674', type: 'CIF', isValid: true }],
+          },
+          metadata: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        outgoing: [],
+        incoming: [],
+        externalIdentities: [],
+      };
+
+      const noteMol: MolecularProjection = {
+        root: {
+          id: 'note-1',
+          organizationId: 'org-test',
+          type: 'note',
+          payload: { content: 'Cliente prefiere contacto por la mañana' },
+          metadata: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        outgoing: [],
+        incoming: [],
+        externalIdentities: [],
+      };
+
+      const rootMolecule: MolecularProjection = {
+        root: clientAtom,
+        outgoing: [{
+          linkId: 'link-assigned',
+          relationType: 'ASSIGNED_TO',
+          atom: taskMol.root,
+          metadata: {},
+        }],
+        incoming: [{
+          linkId: 'link-related',
+          relationType: 'RELATED_TO',
+          atom: docMol.root,
+          metadata: {},
+        }],
+        externalIdentities: [],
+      };
+
+      const aggregated = aggregateEntityIdentity(clientAtom, [taskMol, docMol, noteMol], rootMolecule);
+
+      expect(aggregated.primaryName).toBe('Jose Martines');
+      expect(aggregated.phones).toContain('+34610932115');
+      expect(aggregated.documents).toHaveLength(2); // 12345678Z (DNI) + B12345674 (CIF)
+      expect(aggregated.locations).toHaveLength(1);
+      expect(aggregated.locations[0]?.normalized).toBe('c/ Pau Casals 12, Tortosa');
+
+      // Verificación de Clusters Moleculares
+      expect(aggregated.tasks).toHaveLength(1);
+      expect(aggregated.tasks[0]?.root.id).toBe('task-10');
+      expect(aggregated.documentsClusters).toHaveLength(1);
+      expect(aggregated.documentsClusters[0]?.root.id).toBe('doc-1');
+      expect(aggregated.notes).toHaveLength(1);
+      expect(aggregated.notes[0]?.root.id).toBe('note-1');
+
+      // Verificación de sinapsis
+      expect(aggregated.synapses).toHaveLength(2);
+      expect(aggregated.synapses.find(s => s.direction === 'outgoing')?.relationType).toBe('ASSIGNED_TO');
+      expect(aggregated.synapses.find(s => s.direction === 'incoming')?.relationType).toBe('RELATED_TO');
+    });
+
+    it('genera nombre de respaldo automático si el átomo raíz carece de nombre explícito', () => {
+      const anonAtom: Atom = {
+        id: 'anon-1',
+        organizationId: 'org-test',
+        type: 'client',
+        payload: {
+          phones: ['+34610932115'],
+        },
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const aggregated = aggregateEntityIdentity(anonAtom, []);
+
+      expect(aggregated.primaryName).toBe('Contacto +34610932115');
     });
   });
 });
