@@ -384,9 +384,14 @@ export class OmnibarReactor {
         ...((existingPayload.documents as string[]) ?? []),
         ...documents,
       ]));
+      const existingLocs = ((existingPayload.locations as Array<{ normalized?: string } | string>) ?? []);
+      const incomingLocs = ((intent.coreAtom.payload.locations as Array<{ normalized?: string } | string>) ?? []);
       const mergedLocations = [
-        ...((existingPayload.locations as unknown[]) ?? []),
-        ...((intent.coreAtom.payload.locations as unknown[]) ?? []),
+        ...existingLocs,
+        ...incomingLocs.filter((nl) => {
+          const nlNorm = typeof nl === 'string' ? nl : nl.normalized;
+          return !existingLocs.some(el => (typeof el === 'string' ? el : el.normalized) === nlNorm);
+        }),
       ];
 
       const updated = await AtomRepository.updateAtom(context, existingClient.id, {
@@ -439,13 +444,15 @@ export class OmnibarReactor {
         const currentPhones = ((existingPayload.phones as string[]) ?? []);
         const currentEmails = ((existingPayload.emails as string[]) ?? []);
         const currentDocs = ((existingPayload.documents as string[]) ?? []);
-        const currentLocs = ((existingPayload.locations as Array<{ normalized: string }>) ?? []);
-
+        const currentLocs = ((existingPayload.locations as Array<{ normalized?: string } | string>) ?? []);
         const newPhones = phones.filter(p => !currentPhones.includes(p));
         const newEmails = emails.filter(e => !currentEmails.includes(e));
         const newDocs = documents.filter(d => !currentDocs.includes(d));
-        const eventLocs = ((intent.coreAtom.payload.locations as Array<{ normalized: string }>) ?? []);
-        const newLocs = eventLocs.filter(el => !currentLocs.some(cl => cl.normalized === el.normalized));
+        const eventLocs = ((intent.coreAtom.payload.locations as Array<{ normalized?: string } | string>) ?? []);
+        const newLocs = eventLocs.filter((el) => {
+          const elNorm = typeof el === 'string' ? el : el.normalized;
+          return !currentLocs.some(cl => (typeof cl === 'string' ? cl : cl.normalized) === elNorm);
+        });
 
         if (newPhones.length > 0 || newEmails.length > 0 || newDocs.length > 0 || newLocs.length > 0) {
           const updatedClient = await AtomRepository.updateAtom(context, existingClient.id, {
@@ -466,6 +473,7 @@ export class OmnibarReactor {
         }
       } else {
         // Si el cliente no existe pero la entrada incluye un nombre propio con teléfono, email o ubicación, sintetizar cliente
+        // siempre que no haya ambigüedad previa de homónimos
         const candidateName
           = names[0]
             ?? ((intent.coreAtom.payload.chunks as ParsedSyntagmaChunk[]) ?? []).find(
@@ -477,7 +485,7 @@ export class OmnibarReactor {
             || documents.length > 0
             || ((intent.coreAtom.payload.locations as unknown[]) ?? []).length > 0;
 
-        if (candidateName && hasContactData) {
+        if (candidateName && hasContactData && !identityResolution.isAmbiguous) {
           const createdClient = await AtomRepository.createAtom(context, {
             type: 'client',
             payload: {
@@ -498,7 +506,7 @@ export class OmnibarReactor {
         }
       }
 
-      // Si tenemos cliente (existente o sintetizado), asegurar sinapsis de teléfono y ubicación en el cliente
+      // Si tenemos cliente (existente o sintetizado), asegurar sinapsis de teléfono, email, documento y ubicación en el cliente
       if (identityResolution.clientAtom) {
         const clientId = identityResolution.clientAtom.id;
 
@@ -511,6 +519,40 @@ export class OmnibarReactor {
                 sourceAtomId: clientId,
                 targetAtomId: phoneAtomId,
                 relationType: 'HAS_PHONE',
+                metadata: { auto_synthesized: true },
+              });
+            } catch {
+              // Ignorar duplicados
+            }
+          }
+        }
+
+        // Conectar emails al cliente con HAS_EMAIL
+        for (const email of emails) {
+          const emailAtomId = await this.findOrCreateAtom(context, 'anchor_email', email);
+          if (emailAtomId && emailAtomId !== clientId) {
+            try {
+              await SynapseRepository.createSynapse(context, {
+                sourceAtomId: clientId,
+                targetAtomId: emailAtomId,
+                relationType: 'HAS_EMAIL',
+                metadata: { auto_synthesized: true },
+              });
+            } catch {
+              // Ignorar duplicados
+            }
+          }
+        }
+
+        // Conectar documentos al cliente con HAS_DOCUMENT
+        for (const doc of documents) {
+          const docAtomId = await this.findOrCreateAtom(context, 'anchor_document', doc);
+          if (docAtomId && docAtomId !== clientId) {
+            try {
+              await SynapseRepository.createSynapse(context, {
+                sourceAtomId: clientId,
+                targetAtomId: docAtomId,
+                relationType: 'HAS_DOCUMENT',
                 metadata: { auto_synthesized: true },
               });
             } catch {

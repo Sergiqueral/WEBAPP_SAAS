@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { AtomRepository } from '@/modules/codex/domain/repositories/AtomRepository';
+import { SynapseRepository } from '@/modules/codex/domain/repositories/SynapseRepository';
 import { AccessDeniedError } from '@/modules/codex/domain/types';
 import { OmnibarParser } from '@/modules/codex/omnibar/parser/OmnibarParser';
 import { OmnibarReactor } from '@/modules/codex/omnibar/reactor/OmnibarReactor';
@@ -735,6 +737,373 @@ describe('Omnibarra Mecánica: OmnibarParser', () => {
 
       expect(names).not.toContain('lunes');
       expect(names).not.toContain('reunión');
+    });
+  });
+
+  describe('OmnibarReactor: Reactor de Enriquecimiento y Merge No Destructivo (Paso 3)', () => {
+    const memberContext = {
+      organizationId: 'org-test-reactor',
+      userId: 'user-technician',
+      role: 'member' as const,
+    };
+
+    const fullEventInput
+      = 'Carlos Garcia, telf 654887744, calle Camarles 23 , 1º 2ª de Tarragona , visita para reparar grifo que gotea el miercoles de la semana que viene';
+
+    it('Caso A (Cliente Existente): enriquece el cliente con nuevos datos sin sobreescribir y teje sinapsis bidireccionales con el evento', async () => {
+      const existingClientAtom = {
+        id: 'atom-client-carlos',
+        organizationId: memberContext.organizationId,
+        type: 'client',
+        payload: {
+          name: 'Carlos Garcia',
+          phones: ['610000000'],
+          locations: [],
+        },
+        metadata: { origin: 'legacy_import' },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const resolveSpy = vi
+        .spyOn(OmnibarReactor, 'resolveExistingIdentity')
+        .mockResolvedValueOnce({
+          clientAtom: existingClientAtom,
+          isAmbiguous: false,
+          candidateAtomIds: [],
+          matchType: 'soft_unique',
+          matchedValue: 'Carlos Garcia',
+        });
+
+      let updatedPayloadCaptured: any = null;
+      let updatedMetadataCaptured: any = null;
+
+      const updateSpy = vi
+        .spyOn(AtomRepository, 'updateAtom')
+        .mockImplementationOnce(async (_ctx, _id, input) => {
+          updatedPayloadCaptured = input.payload;
+          updatedMetadataCaptured = input.metadata;
+          return {
+            ...existingClientAtom,
+            payload: input.payload ?? existingClientAtom.payload,
+            metadata: input.metadata ?? existingClientAtom.metadata,
+          };
+        });
+
+      let createdCoreAtomCaptured: any = null;
+      const createdEventAtom = {
+        id: 'atom-event-visita',
+        organizationId: memberContext.organizationId,
+        type: 'event',
+        payload: {
+          title: 'Visita para reparar grifo que gotea',
+        },
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const createAtomSpy = vi
+        .spyOn(AtomRepository, 'createAtom')
+        .mockImplementationOnce(async (_ctx, input) => {
+          createdCoreAtomCaptured = input;
+          return {
+            ...createdEventAtom,
+            type: input.type,
+            payload: input.payload,
+            metadata: input.metadata ?? {},
+          };
+        });
+
+      const findOrCreateSpy = vi
+        .spyOn(OmnibarReactor, 'findOrCreateAtom')
+        .mockImplementation(async (_ctx, type, name) => {
+          return `atom-anchor-${type}-${name.replace(/\s+/g, '_')}`;
+        });
+
+      const createdSynapses: Array<{ source: string; target: string; type: string }> = [];
+      const createSynapseSpy = vi
+        .spyOn(SynapseRepository, 'createSynapse')
+        .mockImplementation(async (_ctx, input) => {
+          createdSynapses.push({
+            source: input.sourceAtomId,
+            target: input.targetAtomId,
+            type: input.relationType,
+          });
+          return {
+            id: `link-${createdSynapses.length}`,
+            organizationId: memberContext.organizationId,
+            sourceAtomId: input.sourceAtomId,
+            targetAtomId: input.targetAtomId,
+            relationType: input.relationType,
+            metadata: input.metadata ?? {},
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+        });
+
+      const getMoleculeSpy = vi
+        .spyOn(SynapseRepository, 'getMolecule')
+        .mockResolvedValueOnce({
+          root: createdEventAtom,
+          outgoing: [],
+          incoming: [],
+          externalIdentities: [],
+        });
+
+      await OmnibarReactor.ingest(memberContext, fullEventInput, { referenceDate });
+
+      // 1. El cliente existente fue enriquecido de manera NO destructiva (Set union de teléfonos)
+      expect(updateSpy).toHaveBeenCalledTimes(1);
+      expect(updatedPayloadCaptured).toBeDefined();
+      expect(updatedPayloadCaptured?.phones).toEqual(['610000000', '654887744']);
+      expect(
+        (updatedPayloadCaptured?.locations as Array<{ normalized: string }>)[0]?.normalized,
+      ).toContain('calle Camarles 23');
+      expect(updatedMetadataCaptured?.enriched_by_event).toBe(true);
+
+      // 2. El evento se creó con su tipo event y título limpio
+      expect(createAtomSpy).toHaveBeenCalledTimes(1);
+      expect(createdCoreAtomCaptured?.type).toBe('event');
+      expect((createdCoreAtomCaptured?.payload as Record<string, unknown>).title).toBe(
+        'Visita para reparar grifo que gotea',
+      );
+
+      // 3. Tejido de Sinapsis Químicas:
+      // - Evento -> Cliente (ASSIGNED_TO)
+      const assignedLink = createdSynapses.find(
+        s => s.source === 'atom-event-visita' && s.target === 'atom-client-carlos' && s.type === 'ASSIGNED_TO',
+      );
+
+      expect(assignedLink).toBeDefined();
+
+      // - Cliente -> Evento (RELATED_TO bidireccional)
+      const relatedLink = createdSynapses.find(
+        s => s.source === 'atom-client-carlos' && s.target === 'atom-event-visita' && s.type === 'RELATED_TO',
+      );
+
+      expect(relatedLink).toBeDefined();
+
+      // - Cliente -> Teléfono (HAS_PHONE)
+      const clientPhoneLink = createdSynapses.find(
+        s => s.source === 'atom-client-carlos' && s.type === 'HAS_PHONE',
+      );
+
+      expect(clientPhoneLink).toBeDefined();
+
+      // - Cliente -> Ubicación (AT_LOCATION)
+      const clientLocLink = createdSynapses.find(
+        s => s.source === 'atom-client-carlos' && s.type === 'AT_LOCATION',
+      );
+
+      expect(clientLocLink).toBeDefined();
+
+      resolveSpy.mockRestore();
+      updateSpy.mockRestore();
+      createAtomSpy.mockRestore();
+      findOrCreateSpy.mockRestore();
+      createSynapseSpy.mockRestore();
+      getMoleculeSpy.mockRestore();
+    });
+
+    it('Caso B (Cliente Nuevo): auto-sintetiza el cliente, genera el evento y teje la red molecular completa', async () => {
+      const resolveSpy = vi
+        .spyOn(OmnibarReactor, 'resolveExistingIdentity')
+        .mockResolvedValueOnce({
+          clientAtom: null,
+          isAmbiguous: false,
+          candidateAtomIds: [],
+          matchType: 'none',
+        });
+
+      const createdAtoms: Array<{
+        id: string;
+        type: string;
+        payload: Record<string, unknown>;
+        metadata: Record<string, unknown>;
+      }> = [];
+
+      const createAtomSpy = vi
+        .spyOn(AtomRepository, 'createAtom')
+        .mockImplementation(async (_ctx, input) => {
+          const id = input.type === 'client' ? 'atom-auto-client' : 'atom-auto-event';
+          const atom = {
+            id,
+            organizationId: memberContext.organizationId,
+            type: input.type,
+            payload: input.payload,
+            metadata: input.metadata ?? {},
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+          createdAtoms.push(atom);
+          return atom;
+        });
+
+      const findOrCreateSpy = vi
+        .spyOn(OmnibarReactor, 'findOrCreateAtom')
+        .mockImplementation(async (_ctx, type, name) => `atom-anchor-${type}-${name}`);
+
+      const createdSynapses: Array<{ source: string; target: string; type: string }> = [];
+      const createSynapseSpy = vi
+        .spyOn(SynapseRepository, 'createSynapse')
+        .mockImplementation(async (_ctx, input) => {
+          createdSynapses.push({
+            source: input.sourceAtomId,
+            target: input.targetAtomId,
+            type: input.relationType,
+          });
+          return {
+            id: `link-${createdSynapses.length}`,
+            organizationId: memberContext.organizationId,
+            sourceAtomId: input.sourceAtomId,
+            targetAtomId: input.targetAtomId,
+            relationType: input.relationType,
+            metadata: input.metadata ?? {},
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+        });
+
+      const getMoleculeSpy = vi
+        .spyOn(SynapseRepository, 'getMolecule')
+        .mockResolvedValueOnce({
+          root: {
+            id: 'atom-auto-event',
+            organizationId: memberContext.organizationId,
+            type: 'event',
+            payload: {},
+            metadata: {},
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          outgoing: [],
+          incoming: [],
+          externalIdentities: [],
+        });
+
+      await OmnibarReactor.ingest(memberContext, fullEventInput, { referenceDate });
+
+      // Verificaciones:
+      expect(createdAtoms).toHaveLength(2);
+
+      const clientAtom = createdAtoms.find(a => a.type === 'client');
+
+      expect(clientAtom).toBeDefined();
+      expect(clientAtom?.payload.name).toBe('Carlos Garcia');
+      expect(clientAtom?.payload.phones).toContain('654887744');
+      expect(clientAtom?.metadata.provenance).toBe('omnibar_auto_synthesis');
+      expect(clientAtom?.metadata.synthesized_from_event).toBe(true);
+
+      const eventAtom = createdAtoms.find(a => a.type === 'event');
+
+      expect(eventAtom).toBeDefined();
+      expect(eventAtom?.payload.title).toBe('Visita para reparar grifo que gotea');
+
+      const assigned = createdSynapses.find(
+        s => s.source === 'atom-auto-event' && s.target === 'atom-auto-client' && s.type === 'ASSIGNED_TO',
+      );
+
+      expect(assigned).toBeDefined();
+
+      const related = createdSynapses.find(
+        s => s.source === 'atom-auto-client' && s.target === 'atom-auto-event' && s.type === 'RELATED_TO',
+      );
+
+      expect(related).toBeDefined();
+
+      resolveSpy.mockRestore();
+      createAtomSpy.mockRestore();
+      findOrCreateSpy.mockRestore();
+      createSynapseSpy.mockRestore();
+      getMoleculeSpy.mockRestore();
+    });
+
+    it('Caso C (Ambigüedad de Homónimos): si hay múltiples coincidencias para el nombre, marca alerta sin auto-sintetizar duplicados', async () => {
+      const resolveSpy = vi
+        .spyOn(OmnibarReactor, 'resolveExistingIdentity')
+        .mockResolvedValueOnce({
+          clientAtom: null,
+          isAmbiguous: true,
+          candidateAtomIds: ['atom-carlos-padre', 'atom-carlos-hijo'],
+          matchType: 'soft_ambiguous',
+          matchedValue: 'Carlos Garcia',
+        });
+
+      let eventCreatedPayload: any = null;
+      let eventCreatedMetadata: any = null;
+
+      const createAtomSpy = vi
+        .spyOn(AtomRepository, 'createAtom')
+        .mockImplementation(async (_ctx, input) => {
+          if (input.type === 'event') {
+            eventCreatedPayload = input.payload;
+            eventCreatedMetadata = input.metadata ?? null;
+          }
+          return {
+            id: 'atom-ambiguous-event',
+            organizationId: memberContext.organizationId,
+            type: input.type,
+            payload: input.payload,
+            metadata: input.metadata ?? {},
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+        });
+
+      const findOrCreateSpy = vi
+        .spyOn(OmnibarReactor, 'findOrCreateAtom')
+        .mockImplementation(async (_ctx, type, name) => `atom-anchor-${type}-${name}`);
+
+      const createSynapseSpy = vi
+        .spyOn(SynapseRepository, 'createSynapse')
+        .mockResolvedValue({
+          id: 'link-mock',
+          organizationId: memberContext.organizationId,
+          sourceAtomId: 'atom-1',
+          targetAtomId: 'atom-2',
+          relationType: 'TEST',
+          metadata: {},
+          createdAt: new Date(),
+        });
+
+      const getMoleculeSpy = vi
+        .spyOn(SynapseRepository, 'getMolecule')
+        .mockResolvedValueOnce({
+          root: {
+            id: 'atom-ambiguous-event',
+            organizationId: memberContext.organizationId,
+            type: 'event',
+            payload: {},
+            metadata: {},
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          outgoing: [],
+          incoming: [],
+          externalIdentities: [],
+        });
+
+      await OmnibarReactor.ingest(memberContext, fullEventInput, { referenceDate });
+
+      // No debe haberse creado un cliente duplicado (solo el átomo evento)
+      expect(createAtomSpy).toHaveBeenCalledTimes(1);
+      expect(eventCreatedPayload?.title).toBe('Visita para reparar grifo que gotea');
+
+      const ambiguity = eventCreatedMetadata?.identity_ambiguity as {
+        isAmbiguous: boolean;
+        candidateAtomIds: string[];
+      };
+
+      expect(ambiguity).toBeDefined();
+      expect(ambiguity.isAmbiguous).toBe(true);
+      expect(ambiguity.candidateAtomIds).toEqual(['atom-carlos-padre', 'atom-carlos-hijo']);
+
+      resolveSpy.mockRestore();
+      createAtomSpy.mockRestore();
+      findOrCreateSpy.mockRestore();
+      createSynapseSpy.mockRestore();
+      getMoleculeSpy.mockRestore();
     });
   });
 });
