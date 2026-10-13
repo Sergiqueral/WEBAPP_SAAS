@@ -654,4 +654,87 @@ describe('Omnibarra Mecánica: OmnibarParser', () => {
       expect(chunks[3]?.type).toBe('event');
     });
   });
+
+  describe('Detección Heurística de Nombres Propios (Sin diccionarios infinitos)', () => {
+    it('Regla 1 (Gramatical): detecta nombres propios compuestos por mayúsculas consecutivas', () => {
+      const input = 'Carlos Garcia necesita un presupuesto de fontaneria';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.entities).toHaveLength(1);
+      expect(tokens.entities[0]?.name).toBe('Carlos Garcia');
+    });
+
+    it('Regla 2 (Posicional / Preposicional): detecta nombres simples o compuestos tras preposiciones con, a, para', () => {
+      // Caso con: "Quedar con Carlos"
+      const tokensCon = OmnibarParser.extractTokens(
+        'Quedar con Carlos el 23/9 en la cafeteria',
+        { referenceDate },
+      );
+
+      expect(tokensCon.entities).toHaveLength(1);
+      expect(tokensCon.entities[0]?.name).toBe('Carlos');
+
+      // Caso a: "Llamar a Pedro"
+      const tokensA = OmnibarParser.extractTokens(
+        'Llamar a Pedro mañana a las 10',
+        { referenceDate },
+      );
+
+      expect(tokensA.entities).toHaveLength(1);
+      expect(tokensA.entities[0]?.name).toBe('Pedro');
+
+      // Caso para: "Enviar presupuesto para Maria"
+      const tokensPara = OmnibarParser.extractTokens(
+        'Enviar presupuesto para Maria',
+        { referenceDate },
+      );
+
+      expect(tokensPara.entities).toHaveLength(1);
+      expect(tokensPara.entities[0]?.name).toBe('Maria');
+    });
+
+    it('Regla 2 (Posicional inicial): detecta nombre propio simple al inicio de sintagma antes de coma', () => {
+      const input = 'Carlos, telf 654887744, calle Camarles 23';
+      const chunks = OmnibarParser.extractSyntagmaChunks(input);
+
+      expect(chunks[0]?.type).toBe('entity');
+      expect(chunks[0]?.cleanText).toBe('Carlos');
+
+      const intent = OmnibarParser.parseToIntent(input, { referenceDate });
+
+      expect(intent.coreAtom.type).toBe('client');
+      expect(intent.coreAtom.title).toBe('Carlos');
+
+      const phoneSynapse = intent.synapses.find(s => s.relationType === 'HAS_PHONE');
+
+      expect(phoneSynapse).toBeDefined();
+      expect(phoneSynapse?.targetEntityName).toBe('654887744');
+    });
+
+    it('Regla 3 (Exclusión de Stopwords): "Calle Camarles" no se interpreta como persona sino como dirección', () => {
+      const input = 'Visitar Calle Camarles 23 mañana';
+      const tokens = OmnibarParser.extractTokens(input, { referenceDate });
+
+      const hasCalleEntity = tokens.entities.some(e =>
+        e.name.toLowerCase().includes('calle') || e.name.toLowerCase().includes('camarles'),
+      );
+
+      expect(hasCalleEntity).toBe(false);
+      expect(tokens.locations.length).toBeGreaterThanOrEqual(1);
+      expect(tokens.locations[0]?.type).toBe('address');
+    });
+
+    it('Regla 3 (Exclusión de Días y Acciones): "Lunes" y "Revisión" no son interpretados como persona', () => {
+      const input = 'Lunes reunión con Pedro';
+      const tokens = OmnibarParser.extractTokens(input, { referenceDate });
+
+      expect(tokens.entities).toHaveLength(1);
+      expect(tokens.entities[0]?.name).toBe('Pedro');
+
+      const names = tokens.entities.map(e => e.name.toLowerCase());
+
+      expect(names).not.toContain('lunes');
+      expect(names).not.toContain('reunión');
+    });
+  });
 });

@@ -273,6 +273,49 @@ const STOPWORDS = new Set([
   'cita',
   'obra',
   'casa',
+  // Prefijos y componentes viales (Regla 3: Exclusión de viales como persona)
+  'calle',
+  'c/',
+  'avda',
+  'avenida',
+  'paseo',
+  'ps',
+  'plaza',
+  'pza',
+  'carretera',
+  'ctra',
+  'poligono',
+  'polígono',
+  'rambla',
+  'camino',
+  'via',
+  'vía',
+  'travessera',
+  'travesia',
+  'travesía',
+  'edificio',
+  'bloque',
+  'nave',
+  'piso',
+  'puerta',
+  'escalera',
+  'portal',
+  // Sustantivos documentales u operativos
+  'factura',
+  'presupuesto',
+  'albaran',
+  'albarán',
+  'pedido',
+  'informe',
+  'recibo',
+  'cliente',
+  'proveedor',
+  'empresa',
+  'proyecto',
+  'encuentro',
+  'sesion',
+  'sesión',
+  'entrevista',
 ]);
 
 function normalizePhoneNumber(raw: string): string {
@@ -415,13 +458,16 @@ export class OmnibarParser {
         trimmed.startsWith('@')
         || knownEntities.some(k => k.name.toLowerCase() === trimmed.toLowerCase())
         || /^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)+$/.test(trimmed)
+        || (/^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+$/.test(trimmed) && (seg.startIndex === 0 || segments.length > 1))
+        || /^(?:[Cc]on|[Aa]|[Pp]ara|[Dd]e)\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*$/.test(trimmed)
       ) {
-        // E) ENTIDAD: Nombres propios con @ o en Mayúsculas compuestas
-        const words = trimmed.replace(/^@/, '').toLowerCase().split(/\s+/);
-        const isStopword = words.every(w => STOPWORDS.has(w));
-        if (!isStopword) {
+        // E) ENTIDAD: Nombres propios con @, Mayúsculas compuestas, o posición inicial / preposición
+        const stripped = trimmed.replace(/^@/, '').replace(/^(?:con|a|para|de)\s+/i, '').trim();
+        const words = stripped.toLowerCase().split(/\s+/);
+        const containsStopword = words.some(w => STOPWORDS.has(w));
+        if (!containsStopword && words.length > 0) {
           type = 'entity';
-          clean = trimmed.replace(/^@/, '').trim();
+          clean = stripped;
         }
       }
 
@@ -895,7 +941,38 @@ export class OmnibarParser {
       }
     }
 
-    // B) Nombres propios compuestos por 2 o más palabras en mayúscula (ej. Jose Martines, Juan Carrasco)
+    // B1) Regla 2 (Posicional / Preposicional): Nombres precedidos por preposiciones de interacción ("con", "a", "para", "de")
+    // Permite detectar nombres simples (ej. "con Carlos", "a Pedro", "para Maria") o compuestos
+    const prepEntityRegex = /\b(?:[Cc]on|[Aa]|[Pp]ara|[Dd]e)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*)\b/g;
+    const prepMatches = Array.from(rawText.matchAll(prepEntityRegex));
+    for (const pm of prepMatches) {
+      if (pm.index === undefined || !pm[1]) {
+        continue;
+      }
+      const matchedName = pm[1].trim();
+      const prepOffset = pm[0].indexOf(matchedName);
+      const startIndex = pm.index + prepOffset;
+      const endIndex = startIndex + matchedName.length;
+
+      const words = matchedName.toLowerCase().split(/\s+/);
+      const containsStopword = words.some(w => STOPWORDS.has(w));
+
+      const alreadyAdded = entities.some(
+        e => Math.max(startIndex, e.startIndex) < Math.min(endIndex, e.endIndex),
+      );
+
+      if (!containsStopword && !alreadyAdded && !isOccupied(startIndex, endIndex)) {
+        entities.push({
+          raw: matchedName,
+          name: matchedName,
+          startIndex,
+          endIndex,
+        });
+        occupiedRanges.push({ start: startIndex, end: endIndex });
+      }
+    }
+
+    // B2) Regla 1 (Gramatical): Nombres propios compuestos por 2 o más palabras en mayúscula (ej. Jose Martines, Juan Carrasco)
     const properNameRegex = /\b[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)+\b/g;
     const nameMatches = Array.from(rawText.matchAll(properNameRegex));
     for (const nm of nameMatches) {
