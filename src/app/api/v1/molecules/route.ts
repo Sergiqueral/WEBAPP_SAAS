@@ -1,11 +1,11 @@
-import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
+import { getServerAuthSession } from '@/libs/auth/server-auth';
 import { MoleculeRepository } from '@/modules/codex/domain/repositories/MoleculeRepository';
 import { resolveTenantContext } from '@/modules/codex/domain/security/tenantContext';
 
 export async function GET(request: Request) {
   try {
-    const { orgId: clerkOrgId, orgRole: clerkOrgRole, userId } = await auth();
+    const { orgId: currentOrgId, orgRole: currentOrgRole, userId } = await getServerAuthSession();
 
     if (!userId) {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
@@ -16,8 +16,8 @@ export async function GET(request: Request) {
 
     const tenantContext = await resolveTenantContext(
       userId,
-      clerkOrgId,
-      clerkOrgRole,
+      currentOrgId,
+      currentOrgRole,
       requestedOrgId,
     );
 

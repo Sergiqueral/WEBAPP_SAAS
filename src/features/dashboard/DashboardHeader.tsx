@@ -1,15 +1,12 @@
-import { UserButton } from '@clerk/nextjs';
-import { useLocale } from 'next-intl';
 import Link from 'next/link';
 import { ActiveLink } from '@/components/ActiveLink';
 import { LocaleSwitcher } from '@/components/LocaleSwitcher';
-
 import { Separator } from '@/components/ui/separator';
 import { Logo } from '@/templates/Logo';
-import { getI18nPath } from '@/utils/Helpers';
 import { MobileNavigation } from './MobileNavigation';
 import { OrganizationMenu } from './OrganizationMenu';
 import { SlashIcon } from './SlashIcon';
+import { UserMenu } from './UserMenu';
 
 export const DashboardHeader = (props: {
   menu: {
@@ -17,8 +14,6 @@ export const DashboardHeader = (props: {
     label: string;
   }[];
 }) => {
-  const locale = useLocale();
-
   return (
     <>
       <div className="flex items-center">
@@ -65,16 +60,7 @@ export const DashboardHeader = (props: {
           </li>
 
           <li>
-            <UserButton
-              userProfileMode="navigation"
-              userProfileUrl={getI18nPath('/dashboard/user-profile', locale)}
-              afterSwitchSessionUrl="/dashboard"
-              appearance={{
-                elements: {
-                  rootBox: 'px-2 py-1.5',
-                },
-              }}
-            />
+            <UserMenu />
           </li>
         </ul>
       </div>

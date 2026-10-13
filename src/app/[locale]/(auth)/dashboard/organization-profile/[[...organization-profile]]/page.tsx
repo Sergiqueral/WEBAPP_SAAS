@@ -1,11 +1,26 @@
-import { OrganizationProfile } from '@clerk/nextjs';
+import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { OrganizationProfileView } from '@/components/auth/OrganizationProfileView';
 import { TitleBar } from '@/features/dashboard/TitleBar';
-import { getI18nPath } from '@/utils/Helpers';
 
-export default async function OrganizationProfilePage(props: {
+type OrganizationProfileProps = {
   params: Promise<{ locale: string }>;
-}) {
+};
+
+export async function generateMetadata(props: OrganizationProfileProps): Promise<Metadata> {
+  const { locale } = await props.params;
+  const t = await getTranslations({
+    locale,
+    namespace: 'OrganizationProfilePage',
+  });
+
+  return {
+    title: t('title_bar'),
+    description: t('title_bar_description'),
+  };
+}
+
+export default async function OrganizationProfilePage(props: OrganizationProfileProps) {
   const { locale } = await props.params;
   setRequestLocale(locale);
   const t = await getTranslations({
@@ -20,17 +35,7 @@ export default async function OrganizationProfilePage(props: {
         description={t('title_bar_description')}
       />
 
-      <OrganizationProfile
-        routing="path"
-        path={getI18nPath('/dashboard/organization-profile', locale)}
-        afterLeaveOrganizationUrl="/onboarding/organization-selection"
-        appearance={{
-          elements: {
-            rootBox: 'w-full',
-            cardBox: 'w-full flex', // `flex` is needed when the component has a large width
-          },
-        }}
-      />
+      <OrganizationProfileView />
     </>
   );
-};
+}

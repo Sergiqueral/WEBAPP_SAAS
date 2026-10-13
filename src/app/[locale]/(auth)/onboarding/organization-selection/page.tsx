@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import { OrganizationList } from '@clerk/nextjs';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { OrganizationManager } from '@/components/auth/OrganizationManager';
 
 type OrganizationSelectionProps = {
   params: Promise<{ locale: string }>;
@@ -24,13 +24,8 @@ export default async function OrganizationSelectionPage(props: OrganizationSelec
   setRequestLocale(locale);
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <OrganizationList
-        afterSelectOrganizationUrl="/dashboard"
-        afterCreateOrganizationUrl="/dashboard"
-        hidePersonal
-        skipInvitationScreen
-      />
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <OrganizationManager locale={locale} />
     </div>
   );
 }

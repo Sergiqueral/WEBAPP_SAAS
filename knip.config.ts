@@ -10,14 +10,17 @@ const config: KnipConfig = {
   ],
   // Dependencies to ignore during analysis
   ignoreDependencies: [
-    '@clerk/shared',
     '@swc/helpers', // Avoid error in CI: "`npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync."
   ],
+
   entry: [
     'src/modules/codex/index.ts!',
     'src/modules/licensing/index.ts!',
     'src/modules/licensing/server.ts!',
+    'src/libs/auth/auth-client.ts!',
+    'src/libs/auth/auth.ts!',
   ],
+
   // Include custom Playwright test file suffixes
   playwright: {
     entry: ['tests/**/*.@(integ|e2e).ts'],
@@ -25,6 +28,7 @@ const config: KnipConfig = {
   // Binaries to ignore during analysis
   ignoreBinaries: [
     'production', // False positive raised with dotenv-cli
+    'tsx',
   ],
   compilers: {
     css: (text: string) => [...text.matchAll(/(?<=@)import[^;]+/g)].join('\n'),

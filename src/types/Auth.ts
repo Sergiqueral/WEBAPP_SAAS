@@ -1,8 +1,11 @@
 import type { EnumValues } from './Enum';
 
 export const ORG_ROLE = {
-  ADMIN: 'org:admin',
-  MEMBER: 'org:member',
+  OWNER: 'owner',
+  ADMIN: 'admin',
+  MEMBER: 'member',
+  ORG_ADMIN: 'org:admin',
+  ORG_MEMBER: 'org:member',
 } as const;
 
 export type OrgRole = EnumValues<typeof ORG_ROLE>;

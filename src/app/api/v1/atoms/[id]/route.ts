@@ -1,5 +1,5 @@
-import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
+import { getServerAuthSession } from '@/libs/auth/server-auth';
 import { MoleculeRepository } from '@/modules/codex/domain/repositories/MoleculeRepository';
 import { SynapseRepository } from '@/modules/codex/domain/repositories/SynapseRepository';
 import { AccessGuard } from '@/modules/codex/domain/security/AccessGuard';
@@ -14,7 +14,7 @@ type RouteContext = {
 
 export async function GET(_request: Request, props: RouteContext) {
   try {
-    const { orgId, orgRole, userId } = await auth();
+    const { orgId, orgRole, userId } = await getServerAuthSession();
 
     if (!userId) {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
@@ -34,7 +34,7 @@ export async function GET(_request: Request, props: RouteContext) {
 
 export async function PATCH(request: Request, props: RouteContext) {
   try {
-    const { orgId, orgRole, userId } = await auth();
+    const { orgId, orgRole, userId } = await getServerAuthSession();
 
     if (!userId) {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
@@ -108,7 +108,7 @@ export async function PATCH(request: Request, props: RouteContext) {
 
 export async function DELETE(_request: Request, props: RouteContext) {
   try {
-    const { orgId, orgRole, userId } = await auth();
+    const { orgId, orgRole, userId } = await getServerAuthSession();
 
     if (!userId) {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 });

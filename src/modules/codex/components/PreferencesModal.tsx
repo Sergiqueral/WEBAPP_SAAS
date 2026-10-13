@@ -1,6 +1,5 @@
 'use client';
 
-import { useOrganization, useUser } from '@clerk/nextjs';
 import * as Dialog from '@radix-ui/react-dialog';
 import {
   CreditCard,
@@ -16,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import React, { useState } from 'react';
+import { authClient } from '@/libs/auth/auth-client';
 import { SubscriptionStatusCard, SuperadminPanelModal } from '@/modules/licensing';
 import { useCodexPreferences } from '../domain/preferences/useCodexPreferences';
 
@@ -26,16 +26,13 @@ export const PreferencesModal: React.FC = () => {
   const [secretKeyInput, setSecretKeyInput] = useState('');
   const [isKeyUnlocked, setIsKeyUnlocked] = useState(false);
   const { omnibarMode, setOmnibarMode, setTheme, theme } = useCodexPreferences();
-  const { membership, organization } = useOrganization();
-  const { user } = useUser();
+  const { data: session } = authClient.useSession();
+  const { data: activeOrg } = authClient.useActiveOrganization();
 
-  const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase() || '';
+  const userEmail = session?.user?.email?.toLowerCase() || '';
   const isOwnerEmail = userEmail.endsWith('@serveix.me') || userEmail.includes('squeral') || userEmail.includes('gorila');
-  const orgId = organization?.id || user?.id || 'personal_workspace';
-  const isAdmin = membership?.role === 'org:admin'
-    || isOwnerEmail
-    || user?.publicMetadata?.role === 'superadmin'
-    || user?.id === 'user_3Kc1HOablotlg14RM5DNuHh4RKp'
+  const orgId = activeOrg?.id || session?.user?.id || 'personal_workspace';
+  const isAdmin = isOwnerEmail
     || isKeyUnlocked
     || process.env.NODE_ENV === 'development';
 

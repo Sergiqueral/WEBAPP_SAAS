@@ -1,6 +1,6 @@
 import type { AddonKey, FeatureKey, PlanTier } from '@/modules/licensing';
-import { auth, currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
+import { getServerAuthSession } from '@/libs/auth/server-auth';
 import {
   removeFeatureOverride,
   setTenantPlan,
@@ -11,7 +11,7 @@ import {
 
 export async function POST(request: Request) {
   try {
-    const { orgRole, userId } = await auth();
+    const { orgRole, userId, userEmail, isSuperadmin } = await getServerAuthSession();
 
     if (!userId) {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
@@ -20,18 +20,16 @@ export async function POST(request: Request) {
     const secretHeader = request.headers.get('x-superadmin-secret');
     const configuredSecret = process.env.SUPERADMIN_SECRET;
 
-    const user = await currentUser();
-    const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase() || '';
-    const isOwnerEmail = userEmail.endsWith('@serveix.me') || userEmail.includes('squeral') || userEmail.includes('gorila');
+    const email = userEmail?.toLowerCase() || '';
+    const isOwnerEmail = email.endsWith('@serveix.me') || email.includes('squeral') || email.includes('gorila');
 
-    // Permitir si es creador/programador (@serveix.me), rol superadmin en BD/Clerk, secret válido, org:admin, o entorno no productivo
-    const isAuthorized = isOwnerEmail
-      || user?.publicMetadata?.role === 'superadmin'
-      || userId === 'user_3Kc1HOablotlg14RM5DNuHh4RKp'
+    // Permitir si es creador/programador (@serveix.me), superadmin, secret válido, o admin de organización
+    const isAuthorized = isSuperadmin
+      || isOwnerEmail
       || (configuredSecret && secretHeader === configuredSecret)
       || secretHeader === 'Gorila_Superadmin_2026'
-      || orgRole === 'org:admin'
-      || !orgRole
+      || orgRole === 'owner'
+      || orgRole === 'admin'
       || process.env.NODE_ENV !== 'production';
 
     if (!isAuthorized) {

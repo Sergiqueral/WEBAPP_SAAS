@@ -1,5 +1,5 @@
-import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
+import { getServerAuthSession } from '@/libs/auth/server-auth';
 import { SynapseRepository } from '@/modules/codex/domain/repositories/SynapseRepository';
 import { AccessGuard } from '@/modules/codex/domain/security/AccessGuard';
 import { resolveTenantContext } from '@/modules/codex/domain/security/tenantContext';
@@ -11,7 +11,7 @@ type RouteContext = {
 
 export async function DELETE(_request: Request, props: RouteContext) {
   try {
-    const { orgId, orgRole, userId } = await auth();
+    const { orgId, orgRole, userId } = await getServerAuthSession();
 
     if (!userId) {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 });

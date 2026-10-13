@@ -1,6 +1,6 @@
-import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { getServerAuthSession } from '@/libs/auth/server-auth';
 import { resolveTenantContext } from '@/modules/codex/domain/security/tenantContext';
 import { AccessDeniedError, IngestIntentSchema } from '@/modules/codex/domain/types';
 import { OmnibarReactor } from '@/modules/codex/omnibar/reactor/OmnibarReactor';
@@ -17,7 +17,7 @@ const IngestRequestSchema = z
 
 export async function POST(req: Request) {
   try {
-    const { orgId: clerkOrgId, orgRole: clerkOrgRole, userId } = await auth();
+    const { orgId: currentOrgId, orgRole: currentOrgRole, userId } = await getServerAuthSession();
 
     if (!userId) {
       return NextResponse.json(
@@ -45,8 +45,8 @@ export async function POST(req: Request) {
 
     const tenantContext = await resolveTenantContext(
       userId,
-      clerkOrgId,
-      clerkOrgRole,
+      currentOrgId,
+      currentOrgRole,
       requestedOrgId,
     );
 

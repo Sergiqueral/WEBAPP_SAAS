@@ -1,72 +1,48 @@
 import type { NextFetchEvent, NextRequest } from 'next/server';
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import createMiddleware from 'next-intl/middleware';
 import { NextResponse } from 'next/server';
 import { routing } from './libs/I18nRouting';
 
 const handleI18nRouting = createMiddleware(routing);
 
-const isProtectedRoute = createRouteMatcher([
-  '/dashboard(.*)',
-  '/:locale/dashboard(.*)',
-  '/onboarding(.*)',
-  '/:locale/onboarding(.*)',
-]);
+function isProtectedRoute(pathname: string): boolean {
+  return /^\/(?:[a-z]{2}\/)?(?:dashboard|onboarding)/.test(pathname);
+}
 
-const isAuthPage = createRouteMatcher([
-  '/sign-in(.*)',
-  '/:locale/sign-in(.*)',
-  '/sign-up(.*)',
-  '/:locale/sign-up(.*)',
-]);
+function isAuthPage(pathname: string): boolean {
+  return /^\/(?:[a-z]{2}\/)?(?:sign-in|sign-up)/.test(pathname);
+}
 
 export default async function proxy(
   request: NextRequest,
-  event: NextFetchEvent,
+  _event: NextFetchEvent,
 ) {
-  if (request.nextUrl.pathname.startsWith('/api')) {
-    return clerkMiddleware(async () => {
-      return NextResponse.next();
-    })(request, event);
+  const { pathname } = request.nextUrl;
+
+  // No interceptar rutas de API
+  if (pathname.startsWith('/api')) {
+    return NextResponse.next();
   }
 
-  // Clerk keyless mode doesn't work with i18n, this is why we need to run the middleware conditionally
-  if (
-    isAuthPage(request) || isProtectedRoute(request)
-  ) {
-    return clerkMiddleware(async (auth, req) => {
-      // Check if the current route is protected and requires authentication
-      // If user is not authenticated, redirect them to the sign-in page with proper locale
-      if (isProtectedRoute(req)) {
-        const locale = req.nextUrl.pathname.match(/(\/.*)\/dashboard/)?.at(1) ?? '';
+  const sessionCookie = request.cookies.get('better-auth.session_token')
+    || request.cookies.get('__Secure-better-auth.session_token');
 
-        const signInUrl = new URL(`${locale}/sign-in`, req.url);
+  // Protección de rutas privadas
+  if (isProtectedRoute(pathname)) {
+    if (!sessionCookie?.value) {
+      const localeMatch = pathname.match(/^\/([a-z]{2})/);
+      const locale = localeMatch ? localeMatch[1] : 'es';
+      const signInUrl = new URL(`/${locale}/sign-in`, request.url);
+      signInUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(signInUrl);
+    }
+  }
 
-        await auth.protect({
-          unauthenticatedUrl: signInUrl.toString(),
-        });
-      }
-
-      const authObj = await auth();
-
-      // Redirect authenticated users without an organization to the organization selection page
-      // This ensures users are properly associated with an organization before accessing the dashboard
-      if (
-        authObj.userId
-        && !authObj.orgId
-        && req.nextUrl.pathname.includes('/dashboard')
-        && !req.nextUrl.pathname.endsWith('/organization-selection')
-      ) {
-        const orgSelection = new URL(
-          '/onboarding/organization-selection',
-          req.url,
-        );
-
-        return NextResponse.redirect(orgSelection);
-      }
-
-      return handleI18nRouting(req);
-    })(request, event);
+  // Si ya tiene sesión activa y visita sign-in/sign-up, redirigir al dashboard
+  if (isAuthPage(pathname) && sessionCookie?.value) {
+    const localeMatch = pathname.match(/^\/([a-z]{2})/);
+    const locale = localeMatch ? localeMatch[1] : 'es';
+    return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url));
   }
 
   return handleI18nRouting(request);

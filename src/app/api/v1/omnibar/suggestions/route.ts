@@ -1,13 +1,14 @@
-import { auth, clerkClient } from '@clerk/nextjs/server';
 import { and, eq, inArray } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
+import { member, user } from '@/libs/auth/schema';
+import { getServerAuthSession } from '@/libs/auth/server-auth';
 import { db } from '@/libs/DB';
 import { atomsSchema } from '@/modules/codex/db/schema';
 import { resolveTenantContext } from '@/modules/codex/domain/security/tenantContext';
 
 export async function GET(request: Request) {
   try {
-    const { orgId: clerkOrgId, orgRole: clerkOrgRole, userId } = await auth();
+    const { orgId: currentOrgId, orgRole: currentOrgRole, userId } = await getServerAuthSession();
 
     if (!userId) {
       return NextResponse.json(
@@ -21,8 +22,8 @@ export async function GET(request: Request) {
 
     const tenantContext = await resolveTenantContext(
       userId,
-      clerkOrgId,
-      clerkOrgRole,
+      currentOrgId,
+      currentOrgRole,
       requestedOrgId,
     );
 
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
     // Tipos biológicos de contextos
     const contextTypes = ['context', 'tag', 'project', 'topic', 'area'];
 
-    // Consultas concurrentes: átomos locales en DB y miembros de la organización en Clerk
+    // Consultas concurrentes: átomos locales en DB y miembros de la organización en PostgreSQL
     const [rawEntities, rawContexts, orgMemberships] = await Promise.all([
       db.query.atomsSchema.findMany({
         where: and(
@@ -48,38 +49,41 @@ export async function GET(request: Request) {
         limit: 100,
       }),
       (async () => {
-        if (!clerkOrgId) {
+        if (!tenantContext.organizationId) {
           return [];
         }
         try {
-          const client = await clerkClient();
-          const res = await client.organizations.getOrganizationMembershipList({
-            organizationId: clerkOrgId,
-            limit: 50,
-          });
-          return res.data;
+          const membersList = await db
+            .select({
+              id: member.id,
+              userId: member.userId,
+              name: user.name,
+              email: user.email,
+            })
+            .from(member)
+            .innerJoin(user, eq(member.userId, user.id))
+            .where(eq(member.organizationId, tenantContext.organizationId))
+            .limit(50);
+          return membersList;
         } catch {
           return [];
         }
       })(),
     ]);
 
-    // Combinar miembros de Clerk con entidades existentes sin duplicados
+    // Combinar miembros con entidades existentes sin duplicados
     const seenNames = new Set<string>();
     const entities: Array<{ id: string; name: string }> = [];
 
     // Priorizar miembros activos del equipo
-    for (const membership of orgMemberships) {
-      const u = membership.publicUserData;
-      const fullName = [u?.firstName, u?.lastName].filter(Boolean).join(' ').trim();
-      const identifier = u?.identifier?.split('@')[0] ?? '';
-      const name = fullName || identifier || 'Miembro';
+    for (const m of orgMemberships) {
+      const name = m.name || m.email.split('@')[0] || 'Miembro';
       const lower = name.toLowerCase();
 
       if (!seenNames.has(lower)) {
         seenNames.add(lower);
         entities.push({
-          id: `clerk-member-${u?.userId ?? membership.id}`,
+          id: `member-${m.userId}`,
           name,
         });
       }

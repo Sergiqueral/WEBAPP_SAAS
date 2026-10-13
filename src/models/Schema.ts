@@ -25,6 +25,9 @@ export const todoSchema = pgTable('todo', {
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
 });
 
+// Módulo de Autenticación Soberana (Better Auth - 0€)
+export * from '@/libs/auth/schema';
+
 // Módulo Codex - Biología del Dato (Cero invasión)
 export * from '@/modules/codex/db/schema';
 
