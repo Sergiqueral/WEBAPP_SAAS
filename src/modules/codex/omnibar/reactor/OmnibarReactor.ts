@@ -2,6 +2,7 @@ import type {
   Atom,
   IngestIntent,
   MolecularProjection,
+  ParsedSyntagmaChunk,
   TenantContext,
 } from '@/modules/codex/domain/types';
 import { and, eq, inArray, sql } from 'drizzle-orm';
@@ -28,6 +29,8 @@ export type ResolvedIdentityResult = {
     | 'hard_document'
     | 'soft_unique'
     | 'soft_ambiguous'
+    | 'auto_synthesized'
+    | 'exact_name_new_contact'
     | 'none';
   matchedValue?: string;
 };
@@ -425,6 +428,122 @@ export class OmnibarReactor {
       }
 
       return SynapseRepository.getMolecule(context, updated.id);
+    }
+
+    // CASO ESPECIAL: Si la entrada es un evento o tarea con datos de cliente (nombre + teléfono/dirección/contacto)
+    if (intent.coreAtom.type !== 'client') {
+      if (identityResolution.clientAtom) {
+        // Enriquecer cliente existente si trae nuevos teléfonos, emails o direcciones
+        const existingClient = identityResolution.clientAtom;
+        const existingPayload = (existingClient.payload as Record<string, unknown>) ?? {};
+        const currentPhones = ((existingPayload.phones as string[]) ?? []);
+        const currentEmails = ((existingPayload.emails as string[]) ?? []);
+        const currentDocs = ((existingPayload.documents as string[]) ?? []);
+        const currentLocs = ((existingPayload.locations as Array<{ normalized: string }>) ?? []);
+
+        const newPhones = phones.filter(p => !currentPhones.includes(p));
+        const newEmails = emails.filter(e => !currentEmails.includes(e));
+        const newDocs = documents.filter(d => !currentDocs.includes(d));
+        const eventLocs = ((intent.coreAtom.payload.locations as Array<{ normalized: string }>) ?? []);
+        const newLocs = eventLocs.filter(el => !currentLocs.some(cl => cl.normalized === el.normalized));
+
+        if (newPhones.length > 0 || newEmails.length > 0 || newDocs.length > 0 || newLocs.length > 0) {
+          const updatedClient = await AtomRepository.updateAtom(context, existingClient.id, {
+            payload: {
+              ...existingPayload,
+              phones: [...currentPhones, ...newPhones],
+              emails: [...currentEmails, ...newEmails],
+              documents: [...currentDocs, ...newDocs],
+              locations: [...currentLocs, ...newLocs],
+            },
+            metadata: {
+              ...((existingClient.metadata as Record<string, unknown>) ?? {}),
+              last_enriched_at: new Date().toISOString(),
+              enriched_by_event: true,
+            },
+          });
+          identityResolution.clientAtom = updatedClient;
+        }
+      } else {
+        // Si el cliente no existe pero la entrada incluye un nombre propio con teléfono, email o ubicación, sintetizar cliente
+        const candidateName
+          = names[0]
+            ?? ((intent.coreAtom.payload.chunks as ParsedSyntagmaChunk[]) ?? []).find(
+              c => c.type === 'entity',
+            )?.cleanText;
+        const hasContactData
+          = phones.length > 0
+            || emails.length > 0
+            || documents.length > 0
+            || ((intent.coreAtom.payload.locations as unknown[]) ?? []).length > 0;
+
+        if (candidateName && hasContactData) {
+          const createdClient = await AtomRepository.createAtom(context, {
+            type: 'client',
+            payload: {
+              name: candidateName,
+              phones,
+              emails,
+              documents,
+              locations: (intent.coreAtom.payload.locations as unknown[]) ?? [],
+            },
+            metadata: {
+              provenance: 'omnibar_auto_synthesis',
+              synthesized_from_event: true,
+              created_at: new Date().toISOString(),
+            },
+          });
+          identityResolution.clientAtom = createdClient;
+          identityResolution.matchType = 'exact_name_new_contact';
+        }
+      }
+
+      // Si tenemos cliente (existente o sintetizado), asegurar sinapsis de teléfono y ubicación en el cliente
+      if (identityResolution.clientAtom) {
+        const clientId = identityResolution.clientAtom.id;
+
+        // Conectar teléfonos al cliente con HAS_PHONE
+        for (const phone of phones) {
+          const phoneAtomId = await this.findOrCreateAtom(context, 'anchor_phone', phone);
+          if (phoneAtomId && phoneAtomId !== clientId) {
+            try {
+              await SynapseRepository.createSynapse(context, {
+                sourceAtomId: clientId,
+                targetAtomId: phoneAtomId,
+                relationType: 'HAS_PHONE',
+                metadata: { auto_synthesized: true },
+              });
+            } catch {
+              // Ignorar duplicados
+            }
+          }
+        }
+
+        // Conectar ubicaciones al cliente con AT_LOCATION
+        const locSynapses = intent.synapses.filter(s => s.relationType === 'AT_LOCATION');
+        for (const locSyn of locSynapses) {
+          let locTargetId = locSyn.targetAtomId;
+          if (!locTargetId && locSyn.targetEntityName) {
+            locTargetId = await this.findOrCreateAtom(
+              context,
+              locSyn.targetType,
+              locSyn.targetEntityName,
+            );
+          }
+          if (locTargetId && locTargetId !== clientId) {
+            try {
+              await SynapseRepository.createSynapse(context, {
+                sourceAtomId: clientId,
+                targetAtomId: locTargetId,
+                relationType: 'AT_LOCATION',
+                metadata: { ...locSyn.metadata, linked_from_event: true },
+              });
+            } catch {
+              // Ignorar duplicados
+            }
+          }
+        }
+      }
     }
 
     // 4. Resolver identificadores de sinapsis (@ y #)

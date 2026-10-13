@@ -568,4 +568,90 @@ describe('Omnibarra Mecánica: OmnibarParser', () => {
       expect(typeNote).toBe('note');
     });
   });
+
+  describe('Delimitadores por Sintagmas y Comas (Token Chunking)', () => {
+    it('segmenta y clasifica bloques por comas (entidad, contacto, dirección, evento)', () => {
+      const input
+        = 'Carlos Garcia, telf 654887744, calle Camarles 23 , 1º 2ª de Tarragona , visita para reparar grifo que gotea el miercoles de la semana que viene';
+
+      const chunks = OmnibarParser.extractSyntagmaChunks(input);
+
+      expect(chunks).toHaveLength(4);
+
+      // Bloque 1: Entidad (Carlos Garcia)
+      expect(chunks[0]?.type).toBe('entity');
+      expect(chunks[0]?.cleanText).toBe('Carlos Garcia');
+
+      // Bloque 2: Contacto (telf 654887744)
+      expect(chunks[1]?.type).toBe('contact');
+      expect(chunks[1]?.cleanText).toBe('654887744');
+
+      // Bloque 3: Dirección unificada con absorción de piso/puerta/ciudad
+      expect(chunks[2]?.type).toBe('address');
+      expect(chunks[2]?.cleanText).toBe(
+        'calle Camarles 23, 1º 2ª de Tarragona',
+      );
+
+      // Bloque 4: Evento (visita para reparar...)
+      expect(chunks[3]?.type).toBe('event');
+      expect(chunks[3]?.cleanText).toContain('visita para reparar grifo que gotea');
+    });
+
+    it('procesa entrada molecular compuesta con cliente y evento simultáneos', () => {
+      const input
+        = 'Carlos Garcia, telf 654887744, calle Camarles 23 , 1º 2ª de Tarragona , visita para reparar grifo que gotea el miercoles de la semana que viene';
+
+      const intent = OmnibarParser.parseToIntent(input, { referenceDate });
+
+      // Arquetipo núcleo debe ser evento
+      expect(intent.coreAtom.type).toBe('event');
+
+      // El título debe ser el propósito limpio sin el resto de entidades ni fecha
+      expect(intent.coreAtom.title).toBe('Visita para reparar grifo que gotea');
+
+      // Fecha temporal detectada
+      expect(intent.temporal).toBeDefined();
+      expect(intent.temporal?.dueDate.getDate()).toBe(28);
+
+      // Tokens y Sinapsis extraídas
+      const assignedSynapse = intent.synapses.find(
+        s => s.relationType === 'ASSIGNED_TO',
+      );
+
+      expect(assignedSynapse).toBeDefined();
+      expect(assignedSynapse?.targetEntityName).toBe('Carlos Garcia');
+
+      const phoneSynapse = intent.synapses.find(
+        s => s.relationType === 'HAS_PHONE',
+      );
+
+      expect(phoneSynapse).toBeDefined();
+      expect(phoneSynapse?.targetEntityName).toBe('654887744');
+
+      const locSynapse = intent.synapses.find(
+        s => s.relationType === 'AT_LOCATION',
+      );
+
+      expect(locSynapse).toBeDefined();
+      expect(locSynapse?.targetEntityName).toContain('calle Camarles 23');
+      expect(locSynapse?.targetEntityName).toContain('Tarragona');
+
+      // Los sintagmas analizados deben quedar adjuntos en el payload
+      expect(intent.coreAtom.payload.chunks).toBeDefined();
+      expect(Array.isArray(intent.coreAtom.payload.chunks)).toBe(true);
+    });
+
+    it('clasifica bloques con otros delimitadores como punto y coma o salto de línea', () => {
+      const input = 'Maria Lopez; email info@serveix.me; c/ Mayor 14; reunion de equipo';
+      const chunks = OmnibarParser.extractSyntagmaChunks(input);
+
+      expect(chunks).toHaveLength(4);
+      expect(chunks[0]?.type).toBe('entity');
+      expect(chunks[0]?.cleanText).toBe('Maria Lopez');
+      expect(chunks[1]?.type).toBe('contact');
+      expect(chunks[1]?.cleanText).toBe('info@serveix.me');
+      expect(chunks[2]?.type).toBe('address');
+      expect(chunks[3]?.type).toBe('event');
+    });
+  });
 });
