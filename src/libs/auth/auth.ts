@@ -24,9 +24,14 @@ export const auth = betterAuth({
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-      enabled: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
     },
   },
+  account: {
+    accountLinking: {
+      enabled: true,
+    },
+  },
+
   plugins: [
     organization({
       allowUserToCreateOrganization: true,
