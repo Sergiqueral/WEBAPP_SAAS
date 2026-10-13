@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ActiveLink } from '@/components/ActiveLink';
 import { LocaleSwitcher } from '@/components/LocaleSwitcher';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Separator } from '@/components/ui/separator';
 import { Logo } from '@/templates/Logo';
 import { MobileNavigation } from './MobileNavigation';
@@ -46,9 +47,13 @@ export const DashboardHeader = (props: {
       </div>
 
       <div>
-        <ul className="flex items-center gap-x-1.5">
+        <ul className="flex items-center gap-x-2">
           <li className="lg:hidden">
             <MobileNavigation menu={props.menu} />
+          </li>
+
+          <li>
+            <ThemeToggle />
           </li>
 
           <li>

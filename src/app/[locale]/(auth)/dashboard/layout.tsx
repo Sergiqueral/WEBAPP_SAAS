@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { redirect } from 'next/navigation';
 import { DashboardHeader } from '@/features/dashboard/DashboardHeader';
 import { getServerAuthSession } from '@/libs/auth/server-auth';
 
@@ -39,7 +39,6 @@ export default async function DashboardLayout(props: DashboardLayoutProps) {
     namespace: 'DashboardLayout',
   });
 
-
   return (
     <>
       <div className="shadow-md">
@@ -61,6 +60,14 @@ export default async function DashboardLayout(props: DashboardLayoutProps) {
                 href: '/dashboard/organization-profile',
                 label: t('settings'),
               },
+              ...(session.isSuperadmin
+                ? [
+                    {
+                      href: '/dashboard/admin',
+                      label: '👑 Superadmin',
+                    },
+                  ]
+                : []),
             ]}
           />
         </div>

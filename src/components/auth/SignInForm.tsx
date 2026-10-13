@@ -56,21 +56,21 @@ export const SignInForm: React.FC<{ locale: string }> = ({ locale }) => {
 
   return (
     <div className="
-      w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950/80 p-8
-      shadow-2xl backdrop-blur-xl
+      w-full max-w-md rounded-2xl border border-border bg-card p-8
+      text-card-foreground shadow-xl
     "
     >
       <div className="mb-6 text-center">
-        <h2 className="text-2xl font-bold tracking-tight text-white">Iniciar Sesión</h2>
-        <p className="mt-1 text-sm text-zinc-400">
-          Accede a tu espacio biológico en Gorila
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">Iniciar Sesión</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Accede a tu espacio de trabajo en Gorila
         </p>
       </div>
 
       {error && (
         <div className="
-          mb-5 rounded-lg border border-red-500/30 bg-red-950/40 p-3.5 text-sm
-          text-red-300
+          mb-5 rounded-lg border border-destructive/30 bg-destructive/10 p-3.5
+          text-sm text-destructive
         "
         >
           {error}
@@ -80,7 +80,8 @@ export const SignInForm: React.FC<{ locale: string }> = ({ locale }) => {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="
-            block text-xs font-semibold tracking-wider text-zinc-400 uppercase
+            block text-xs font-semibold tracking-wider text-muted-foreground
+            uppercase
           "
           >
             Correo Electrónico
@@ -88,7 +89,7 @@ export const SignInForm: React.FC<{ locale: string }> = ({ locale }) => {
           <div className="relative mt-1.5">
             <div className="
               pointer-events-none absolute inset-y-0 left-0 flex items-center
-              pl-3.5 text-zinc-500
+              pl-3.5 text-muted-foreground
             "
             >
               <Mail className="size-4" />
@@ -100,10 +101,10 @@ export const SignInForm: React.FC<{ locale: string }> = ({ locale }) => {
               onChange={e => setEmail(e.target.value)}
               placeholder="tu@correo.com"
               className="
-                w-full rounded-xl border border-zinc-800 bg-zinc-900/90 py-2.5
-                pr-4 pl-10 text-sm text-white placeholder-zinc-500
-                focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500
-                focus:outline-none
+                w-full rounded-xl border border-input bg-background py-2.5 pr-4
+                pl-10 text-sm text-foreground
+                placeholder:text-muted-foreground
+                focus:ring-2 focus:ring-ring focus:outline-none
               "
             />
           </div>
@@ -111,7 +112,8 @@ export const SignInForm: React.FC<{ locale: string }> = ({ locale }) => {
 
         <div>
           <label className="
-            block text-xs font-semibold tracking-wider text-zinc-400 uppercase
+            block text-xs font-semibold tracking-wider text-muted-foreground
+            uppercase
           "
           >
             Contraseña
@@ -119,7 +121,7 @@ export const SignInForm: React.FC<{ locale: string }> = ({ locale }) => {
           <div className="relative mt-1.5">
             <div className="
               pointer-events-none absolute inset-y-0 left-0 flex items-center
-              pl-3.5 text-zinc-500
+              pl-3.5 text-muted-foreground
             "
             >
               <Lock className="size-4" />
@@ -131,10 +133,10 @@ export const SignInForm: React.FC<{ locale: string }> = ({ locale }) => {
               onChange={e => setPassword(e.target.value)}
               placeholder="••••••••"
               className="
-                w-full rounded-xl border border-zinc-800 bg-zinc-900/90 py-2.5
-                pr-4 pl-10 text-sm text-white placeholder-zinc-500
-                focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500
-                focus:outline-none
+                w-full rounded-xl border border-input bg-background py-2.5 pr-4
+                pl-10 text-sm text-foreground
+                placeholder:text-muted-foreground
+                focus:ring-2 focus:ring-ring focus:outline-none
               "
             />
           </div>
@@ -144,10 +146,10 @@ export const SignInForm: React.FC<{ locale: string }> = ({ locale }) => {
           type="submit"
           disabled={isLoading}
           className="
-            flex w-full items-center justify-center gap-2 rounded-xl
-            bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg
-            shadow-indigo-600/30 transition
-            hover:bg-indigo-500
+            flex w-full items-center justify-center gap-2 rounded-xl bg-primary
+            px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-xs
+            transition
+            hover:bg-primary/90
             disabled:opacity-50
           "
         >
@@ -169,10 +171,10 @@ export const SignInForm: React.FC<{ locale: string }> = ({ locale }) => {
 
       <div className="relative my-6">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-zinc-800" />
+          <div className="w-full border-t border-border" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-zinc-950 px-2 text-zinc-500">O también</span>
+          <span className="bg-card px-2 text-muted-foreground">O también</span>
         </div>
       </div>
 
@@ -181,9 +183,9 @@ export const SignInForm: React.FC<{ locale: string }> = ({ locale }) => {
         onClick={handleGoogleSignIn}
         className="
           flex w-full items-center justify-center gap-2 rounded-xl border
-          border-zinc-800 bg-zinc-900/70 px-4 py-2.5 text-sm font-medium
-          text-zinc-300 transition
-          hover:bg-zinc-800 hover:text-white
+          border-border bg-background px-4 py-2.5 text-sm font-medium
+          text-foreground transition-colors
+          hover:bg-muted
         "
       >
         <svg className="size-4" viewBox="0 0 24 24">
@@ -207,14 +209,14 @@ export const SignInForm: React.FC<{ locale: string }> = ({ locale }) => {
         <span>Continuar con Google</span>
       </button>
 
-      <p className="mt-6 text-center text-xs text-zinc-500">
+      <p className="mt-6 text-center text-xs text-muted-foreground">
         ¿Aún no tienes cuenta?
         {' '}
         <Link
           href={`/${locale}/sign-up`}
           className="
-            font-medium text-indigo-400
-            hover:text-indigo-300 hover:underline
+            font-medium text-primary
+            hover:underline
           "
         >
           Crear una cuenta gratis
