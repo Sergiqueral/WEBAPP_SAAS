@@ -1,7 +1,19 @@
 'use client';
 
 import type { ParsedTokens } from '@/modules/codex/domain/types';
-import { Calendar, CheckCircle2, FileText, Hash, Inbox, User } from 'lucide-react';
+import {
+  Calendar,
+  CheckCircle2,
+  FileText,
+  Hash,
+  HelpCircle,
+  Inbox,
+  Mail,
+  Phone,
+  User,
+  UserCheck,
+  Zap,
+} from 'lucide-react';
 import React from 'react';
 
 export type MolecularFootprintProps = {
@@ -13,17 +25,42 @@ export const MolecularFootprint: React.FC<MolecularFootprintProps> = ({
   tokens,
   className = '',
 }) => {
-  const { cleanText, contexts, entities, temporal } = tokens;
+  const {
+    actions = [],
+    cleanText,
+    conditions = [],
+    contexts = [],
+    emails = [],
+    entities = [],
+    phones = [],
+    temporal,
+  } = tokens;
 
-  // Determinar la naturaleza del átomo central
-  const hasTokens = entities.length > 0 || contexts.length > 0 || !!temporal;
-  const atomType = hasTokens ? (temporal ? 'task' : 'note') : 'inbox';
+  // Determinar la naturaleza del átomo central (Arquetipo)
+  const isOperative = actions.length > 0 || !!temporal;
+  const hasContactAnchor = phones.length > 0 || emails.length > 0;
+  const hasEntity = entities.length > 0;
+  const hasContext = contexts.length > 0;
+
+  let atomType: 'task' | 'client' | 'note' | 'inbox' = 'inbox';
+  if (isOperative) {
+    atomType = 'task';
+  } else if (hasContactAnchor && hasEntity) {
+    atomType = 'client';
+  } else if (hasEntity || hasContext) {
+    atomType = 'note';
+  }
 
   const atomTypeConfig = {
     task: {
-      label: 'Tarea',
+      label: 'Tarea Operativa',
       icon: CheckCircle2,
       color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+    },
+    client: {
+      label: 'Ficha Cliente',
+      icon: UserCheck,
+      color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
     },
     note: {
       label: 'Nota',
@@ -40,10 +77,11 @@ export const MolecularFootprint: React.FC<MolecularFootprintProps> = ({
   const AtomIcon = atomTypeConfig.icon;
 
   return (
-    <div className={`
-      flex flex-col gap-2 border-t border-border/40 pt-2 text-xs
-      ${className}
-    `}
+    <div
+      className={`
+        flex flex-col gap-2 border-t border-border/40 pt-2 text-xs
+        ${className}
+      `}
     >
       <div className="flex flex-wrap items-center gap-1.5">
         {/* Huella del Átomo Central */}
@@ -59,7 +97,23 @@ export const MolecularFootprint: React.FC<MolecularFootprintProps> = ({
           <span>{atomTypeConfig.label}</span>
         </span>
 
-        {/* Huella de Entidades (@) */}
+        {/* Huella de Acciones Operativas (⚡) */}
+        {actions.map(act => (
+          <span
+            key={`act-${act.startIndex}-${act.raw}`}
+            className="
+              inline-flex items-center gap-1 rounded-full border
+              border-orange-500/25 bg-orange-500/10 px-2 py-0.5 font-medium
+              text-orange-600 transition-all duration-150
+              dark:text-orange-400
+            "
+          >
+            <Zap className="size-3" />
+            <span>{act.label}</span>
+          </span>
+        ))}
+
+        {/* Huella de Entidades (@ o Nombres) */}
         {entities.map(ent => (
           <span
             key={`ent-${ent.startIndex}-${ent.name}`}
@@ -72,25 +126,60 @@ export const MolecularFootprint: React.FC<MolecularFootprintProps> = ({
           >
             <User className="size-3" />
             <span>
-              @
+              {ent.raw.startsWith('@') ? '' : '@'}
               {ent.name}
             </span>
           </span>
         ))}
 
-        {/* Huella Temporal (//) */}
+        {/* Huella Telefónica (📞) */}
+        {phones.map(p => (
+          <span
+            key={`phone-${p.startIndex}-${p.number}`}
+            className="
+              inline-flex items-center gap-1 rounded-full border
+              border-teal-500/25 bg-teal-500/10 px-2 py-0.5 font-medium
+              text-teal-600 transition-all duration-150
+              dark:text-teal-400
+            "
+          >
+            <Phone className="size-3" />
+            <span>{p.raw}</span>
+          </span>
+        ))}
+
+        {/* Huella de Correo (✉️) */}
+        {emails.map(e => (
+          <span
+            key={`email-${e.startIndex}-${e.email}`}
+            className="
+              inline-flex items-center gap-1 rounded-full border
+              border-cyan-500/25 bg-cyan-500/10 px-2 py-0.5 font-medium
+              text-cyan-600 transition-all duration-150
+              dark:text-cyan-400
+            "
+          >
+            <Mail className="size-3" />
+            <span>{e.email}</span>
+          </span>
+        ))}
+
+        {/* Huella Temporal (// o Natural) */}
         {temporal && (
-          <span className="
-            inline-flex items-center gap-1 rounded-full border
-            border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 font-medium
-            text-emerald-600 transition-all duration-150
-            dark:text-emerald-400
-          "
+          <span
+            className="
+              inline-flex items-center gap-1 rounded-full border
+              border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 font-medium
+              text-emerald-600 transition-all duration-150
+              dark:text-emerald-400
+            "
           >
             <Calendar className="size-3" />
             <span>
               {temporal.expression}
-              {temporal.hasTime ? ` (${temporal.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : ''}
+              {temporal.hasTime
+                ? ` (${temporal.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`
+                : ''}
             </span>
           </span>
         )}
@@ -111,6 +200,22 @@ export const MolecularFootprint: React.FC<MolecularFootprintProps> = ({
               #
               {ctx.name}
             </span>
+          </span>
+        ))}
+
+        {/* Huella de Condición / Incertidumbre (🟡) */}
+        {conditions.map(c => (
+          <span
+            key={`cond-${c.startIndex}-${c.expression}`}
+            className="
+              inline-flex items-center gap-1 rounded-full border
+              border-amber-500/25 bg-amber-500/10 px-2 py-0.5 font-medium
+              text-amber-600 transition-all duration-150
+              dark:text-amber-400
+            "
+          >
+            <HelpCircle className="size-3" />
+            <span>{c.expression}</span>
           </span>
         ))}
       </div>

@@ -145,6 +145,143 @@ describe('Omnibarra Mecánica: OmnibarParser', () => {
     });
   });
 
+  describe('Detectores de Anclajes Moleculares (Paso 1)', () => {
+    it('extrae teléfonos automáticamente (móvil, fijo e internacional con prefijo +)', () => {
+      const input = 'Llamar al 610932115 o al fijo 977 12 34 56 o internacional +34 610 932 115';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.phones).toHaveLength(3);
+      expect(tokens.phones[0]?.number).toBe('610932115');
+      expect(tokens.phones[1]?.number).toBe('977123456');
+      expect(tokens.phones[2]?.number).toBe('+34610932115');
+    });
+
+    it('no confunde códigos postales (5 dígitos) ni años (4 dígitos) con teléfonos', () => {
+      const input = 'Enviar paquete a Tortosa 43870 en el año 2026';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.phones).toHaveLength(0);
+    });
+
+    it('detecta correos electrónicos y evita colisión con el detector de entidades @', () => {
+      const input = 'Enviar factura a soporte@serveix.me y copia a squeral@serveix.me';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.emails).toHaveLength(2);
+      expect(tokens.emails[0]?.email).toBe('soporte@serveix.me');
+      expect(tokens.emails[1]?.email).toBe('squeral@serveix.me');
+      // No debe haber extraído @serveix.me como entidad
+      expect(tokens.entities).toHaveLength(0);
+    });
+
+    it('detecta verbos de acción operativos (llamar, visitar, revisar, enviar, confirmar)', () => {
+      const input = 'Llamar para confirmar cita y revisar el presupuesto';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.actions).toHaveLength(3);
+
+      const actionTypes = tokens.actions.map(a => a.action);
+
+      expect(actionTypes).toContain('call');
+      expect(actionTypes).toContain('confirm');
+      expect(actionTypes).toContain('review');
+    });
+
+    it('detecta expresiones de incertidumbre y condicionantes (si contesta, tal vez)', () => {
+      const input = 'visitar la obra el viernes si contesta o tal vez llamar';
+      const tokens = OmnibarParser.extractTokens(input, { referenceDate });
+
+      expect(tokens.conditions.length).toBeGreaterThanOrEqual(1);
+
+      const exprs = tokens.conditions.map(c => c.expression);
+
+      expect(exprs).toContain('si contesta');
+    });
+
+    it('extrae fechas embebidas en lenguaje natural sin requerir prefijo //', () => {
+      // Martes 20 Octubre 2026 -> "el miercoles" debe ser Miércoles 21 Octubre
+      const input = 'Llamar al cliente el miercoles a las 11:00';
+      const tokens = OmnibarParser.extractTokens(input, { referenceDate });
+
+      expect(tokens.temporal).toBeDefined();
+      expect(tokens.temporal?.date.getDate()).toBe(21);
+      expect(tokens.temporal?.hasTime).toBe(true);
+      expect(tokens.temporal?.date.getHours()).toBe(11);
+    });
+
+    it('detecta nombres propios sin @ basados en mayúsculas compuestas (ej. Jose Martines)', () => {
+      const input = 'Jose Martines vive en Tortosa';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.entities).toHaveLength(1);
+      expect(tokens.entities[0]?.name).toBe('Jose Martines');
+    });
+
+    it('resuelve el Caso de Uso 1 del usuario: "llamar al 610932115 el miercoles para confirmar la oferta"', () => {
+      const input = 'llamar al 610932115 el miercoles para confirmar la oferta';
+      const intent = OmnibarParser.parseToIntent(input, { referenceDate });
+
+      expect(intent.coreAtom.type).toBe('task');
+      expect(intent.coreAtom.title).toBe('llamar al 610932115 para confirmar la oferta');
+      expect(intent.temporal).toBeDefined();
+      expect(intent.temporal?.dueDate.getDate()).toBe(21); // Miércoles 21
+
+      // Acciones registradas
+      const payload = intent.coreAtom.payload as {
+        phones?: string[];
+        actions?: string[];
+      };
+
+      expect(payload.phones).toContain('610932115');
+      expect(payload.actions).toContain('call');
+      expect(payload.actions).toContain('confirm');
+
+      // Sinapsis telefónica creada
+      const phoneSynapse = intent.synapses.find(s => s.relationType === 'HAS_PHONE');
+
+      expect(phoneSynapse).toBeDefined();
+      expect(phoneSynapse?.targetEntityName).toBe('610932115');
+    });
+
+    it('resuelve el Caso de Uso 2 del usuario: "Jose Martines 610932115 vive en Tortosa" (Ficha Cliente Emergente)', () => {
+      const input = 'Jose Martines 610932115 vive en Tortosa';
+      const intent = OmnibarParser.parseToIntent(input, { referenceDate });
+
+      // Arquetipo detectado como ficha de cliente emergente
+      expect(intent.coreAtom.type).toBe('client');
+      expect(intent.coreAtom.title).toBe('Jose Martines');
+
+      // Vinculación ancla
+      const phoneSynapse = intent.synapses.find(s => s.relationType === 'HAS_PHONE');
+
+      expect(phoneSynapse).toBeDefined();
+      expect(phoneSynapse?.targetEntityName).toBe('610932115');
+
+      const entitySynapse = intent.synapses.find(s => s.relationType === 'ASSIGNED_TO');
+
+      expect(entitySynapse).toBeDefined();
+      expect(entitySynapse?.targetEntityName).toBe('Jose Martines');
+    });
+
+    it('ambos casos de uso generan el mismo nodo ancla telefónico para interconectar el grafo', () => {
+      const taskIntent = OmnibarParser.parseToIntent(
+        'llamar al 610932115 el miercoles para confirmar la oferta',
+        { referenceDate },
+      );
+      const clientIntent = OmnibarParser.parseToIntent(
+        'Jose Martines 610932115 vive en Tortosa',
+        { referenceDate },
+      );
+
+      const taskPhone = taskIntent.synapses.find(s => s.relationType === 'HAS_PHONE');
+      const clientPhone = clientIntent.synapses.find(s => s.relationType === 'HAS_PHONE');
+
+      expect(taskPhone?.targetEntityName).toBe('610932115');
+      expect(clientPhone?.targetEntityName).toBe('610932115');
+      expect(taskPhone?.targetEntityName).toBe(clientPhone?.targetEntityName);
+    });
+  });
+
   describe('OmnibarReactor: Seguridad y Control de Acceso', () => {
     it('bloquea tajantemente la ingesta si el usuario tiene rol viewer', async () => {
       const viewerContext = {

@@ -182,10 +182,45 @@ export type ParsedContextToken = {
   endIndex: number;
 };
 
+export type ParsedPhoneToken = {
+  raw: string; // ej. "+34 610 932 115"
+  number: string; // normalizado ej. "610932115" o "+34610932115"
+  startIndex: number;
+  endIndex: number;
+};
+
+export type ParsedEmailToken = {
+  raw: string; // ej. "contacto@empresa.com"
+  email: string; // en minúsculas
+  startIndex: number;
+  endIndex: number;
+};
+
+export type ParsedActionType = 'call' | 'visit' | 'review' | 'send' | 'confirm' | 'custom';
+
+export type ParsedActionToken = {
+  raw: string; // ej. "llamar", "visitar", "revisar"
+  action: ParsedActionType;
+  label: string; // ej. "Llamada", "Visita", "Revisión"
+  startIndex: number;
+  endIndex: number;
+};
+
+export type ParsedConditionToken = {
+  raw: string; // ej. "si no llueve", "tal vez"
+  expression: string;
+  startIndex: number;
+  endIndex: number;
+};
+
 export type ParsedTokens = {
   entities: ParsedEntityToken[];
   contexts: ParsedContextToken[];
   temporal?: ParsedTemporalToken;
+  phones: ParsedPhoneToken[];
+  emails: ParsedEmailToken[];
+  actions: ParsedActionToken[];
+  conditions: ParsedConditionToken[];
   cleanText: string;
 };
 
