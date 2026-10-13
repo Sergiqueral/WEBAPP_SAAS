@@ -22,6 +22,7 @@ export type CellHeaderProps = {
   onClearCell: () => void;
   onQuickCapture?: (contextName: string) => void;
   onSelectCollaborator?: (atom: Atom) => void;
+  onOpenEntityLens?: (atom: Atom) => void;
 };
 
 /**
@@ -34,16 +35,17 @@ export type CellHeaderProps = {
 export const CellHeader: React.FC<CellHeaderProps> = ({
   cellAtom,
   metrics,
-  statusFilter,
-  onStatusFilterChange,
   onClearCell,
+  onOpenEntityLens,
   onQuickCapture,
   onSelectCollaborator,
+  onStatusFilterChange,
+  statusFilter,
 }) => {
   const payload = (cellAtom.payload ?? {}) as Record<string, unknown>;
   const cellName = String(payload.name ?? payload.title ?? cellAtom.id);
   const isContext = cellAtom.type === 'context';
-  const isEntity = cellAtom.type === 'entity';
+  const isEntity = ['entity', 'client', 'contact', 'person', 'provider', 'employee'].includes(cellAtom.type);
 
   const handleCapture = () => {
     if (onQuickCapture) {
@@ -184,6 +186,23 @@ export const CellHeader: React.FC<CellHeaderProps> = ({
           sm:self-auto
         "
         >
+          {isEntity && onOpenEntityLens && (
+            <button
+              type="button"
+              onClick={() => onOpenEntityLens(cellAtom)}
+              className="
+                inline-flex items-center gap-1.5 rounded-lg border
+                border-primary/30 bg-primary/10 px-2.5 py-1 text-xs
+                font-semibold text-primary transition-colors
+                hover:bg-primary/20
+              "
+              title="Abrir Lente Molecular de este cliente"
+            >
+              <Sparkles className="size-3.5" />
+              <span>Ver Ficha de Cliente</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={handleCapture}

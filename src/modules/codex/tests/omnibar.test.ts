@@ -19,7 +19,9 @@ describe('Omnibarra Mecánica: OmnibarParser', () => {
       const intent = OmnibarParser.parseToIntent(input, { referenceDate });
 
       expect(intent.coreAtom.type).toBe('inbox');
-      expect(intent.coreAtom.title).toBe('Comprar pintura blanca para el salón');
+      expect(intent.coreAtom.title).toBe(
+        'Comprar pintura blanca para el salón',
+      );
       expect(intent.synapses).toHaveLength(0);
       expect(intent.temporal).toBeUndefined();
     });
@@ -119,7 +121,8 @@ describe('Omnibarra Mecánica: OmnibarParser', () => {
 
   describe('Entrada Molecular Completa (Combinación Total)', () => {
     it('procesa texto con entidad, fecha y contexto al unísono', () => {
-      const input = 'Revisar planos con @Jose Carlos //mañana a las 10:00 para #ObraCasa';
+      const input
+        = 'Revisar planos con @Jose Carlos //mañana a las 10:00 para #ObraCasa';
       const intent = OmnibarParser.parseToIntent(input, {
         knownEntities,
         referenceDate,
@@ -129,19 +132,336 @@ describe('Omnibarra Mecánica: OmnibarParser', () => {
       expect(intent.coreAtom.title).toBe('Revisar planos con para');
 
       // Entidad
-      const entity = intent.synapses.find(s => s.relationType === 'ASSIGNED_TO');
+      const entity = intent.synapses.find(
+        s => s.relationType === 'ASSIGNED_TO',
+      );
 
       expect(entity?.targetEntityName).toBe('Jose Carlos');
       expect(entity?.targetAtomId).toBe('atom-jc');
 
       // Contexto
-      const context = intent.synapses.find(s => s.relationType === 'TAGGED_WITH');
+      const context = intent.synapses.find(
+        s => s.relationType === 'TAGGED_WITH',
+      );
 
       expect(context?.targetEntityName).toBe('ObraCasa');
 
       // Temporal
       expect(intent.temporal?.hasTime).toBe(true);
       expect(intent.temporal?.dueDate.getHours()).toBe(10);
+    });
+  });
+
+  describe('Detectores de Anclajes Moleculares (Paso 1)', () => {
+    it('extrae teléfonos automáticamente (móvil, fijo e internacional con prefijo +)', () => {
+      const input
+        = 'Llamar al 610932115 o al fijo 977 12 34 56 o internacional +34 610 932 115';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.phones).toHaveLength(3);
+      expect(tokens.phones[0]?.number).toBe('610932115');
+      expect(tokens.phones[1]?.number).toBe('977123456');
+      expect(tokens.phones[2]?.number).toBe('+34610932115');
+    });
+
+    it('no confunde códigos postales (5 dígitos) ni años (4 dígitos) con teléfonos', () => {
+      const input = 'Enviar paquete a Tortosa 43870 en el año 2026';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.phones).toHaveLength(0);
+    });
+
+    it('detecta correos electrónicos y evita colisión con el detector de entidades @', () => {
+      const input
+        = 'Enviar factura a soporte@serveix.me y copia a squeral@serveix.me';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.emails).toHaveLength(2);
+      expect(tokens.emails[0]?.email).toBe('soporte@serveix.me');
+      expect(tokens.emails[1]?.email).toBe('squeral@serveix.me');
+      // No debe haber extraído @serveix.me como entidad
+      expect(tokens.entities).toHaveLength(0);
+    });
+
+    it('detecta verbos de acción operativos (llamar, visitar, revisar, enviar, confirmar)', () => {
+      const input = 'Llamar para confirmar cita y revisar el presupuesto';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.actions).toHaveLength(3);
+
+      const actionTypes = tokens.actions.map(a => a.action);
+
+      expect(actionTypes).toContain('call');
+      expect(actionTypes).toContain('confirm');
+      expect(actionTypes).toContain('review');
+    });
+
+    it('detecta expresiones de incertidumbre y condicionantes (si contesta, tal vez)', () => {
+      const input = 'visitar la obra el viernes si contesta o tal vez llamar';
+      const tokens = OmnibarParser.extractTokens(input, { referenceDate });
+
+      expect(tokens.conditions.length).toBeGreaterThanOrEqual(1);
+
+      const exprs = tokens.conditions.map(c => c.expression);
+
+      expect(exprs).toContain('si contesta');
+    });
+
+    it('extrae fechas embebidas en lenguaje natural sin requerir prefijo //', () => {
+      // Martes 20 Octubre 2026 -> "el miercoles" debe ser Miércoles 21 Octubre
+      const input = 'Llamar al cliente el miercoles a las 11:00';
+      const tokens = OmnibarParser.extractTokens(input, { referenceDate });
+
+      expect(tokens.temporal).toBeDefined();
+      expect(tokens.temporal?.date.getDate()).toBe(21);
+      expect(tokens.temporal?.hasTime).toBe(true);
+      expect(tokens.temporal?.date.getHours()).toBe(11);
+    });
+
+    it('detecta nombres propios sin @ basados en mayúsculas compuestas (ej. Jose Martines)', () => {
+      const input = 'Jose Martines vive en Tortosa';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.entities).toHaveLength(1);
+      expect(tokens.entities[0]?.name).toBe('Jose Martines');
+    });
+
+    it('resuelve el Caso de Uso 1 del usuario: "llamar al 610932115 el miercoles para confirmar la oferta"', () => {
+      const input = 'llamar al 610932115 el miercoles para confirmar la oferta';
+      const intent = OmnibarParser.parseToIntent(input, { referenceDate });
+
+      expect(intent.coreAtom.type).toBe('task');
+      expect(intent.coreAtom.title).toBe(
+        'llamar al 610932115 para confirmar la oferta',
+      );
+      expect(intent.temporal).toBeDefined();
+      expect(intent.temporal?.dueDate.getDate()).toBe(21); // Miércoles 21
+
+      // Acciones registradas
+      const payload = intent.coreAtom.payload as {
+        phones?: string[];
+        actions?: string[];
+      };
+
+      expect(payload.phones).toContain('610932115');
+      expect(payload.actions).toContain('call');
+      expect(payload.actions).toContain('confirm');
+
+      // Sinapsis telefónica creada
+      const phoneSynapse = intent.synapses.find(
+        s => s.relationType === 'HAS_PHONE',
+      );
+
+      expect(phoneSynapse).toBeDefined();
+      expect(phoneSynapse?.targetEntityName).toBe('610932115');
+    });
+
+    it('resuelve el Caso de Uso 2 del usuario: "Jose Martines 610932115 vive en Tortosa" (Ficha Cliente Emergente)', () => {
+      const input = 'Jose Martines 610932115 vive en Tortosa';
+      const intent = OmnibarParser.parseToIntent(input, { referenceDate });
+
+      // Arquetipo detectado como ficha de cliente emergente
+      expect(intent.coreAtom.type).toBe('client');
+      expect(intent.coreAtom.title).toBe('Jose Martines');
+
+      // Vinculación ancla
+      const phoneSynapse = intent.synapses.find(
+        s => s.relationType === 'HAS_PHONE',
+      );
+
+      expect(phoneSynapse).toBeDefined();
+      expect(phoneSynapse?.targetEntityName).toBe('610932115');
+
+      const entitySynapse = intent.synapses.find(
+        s => s.relationType === 'ASSIGNED_TO',
+      );
+
+      expect(entitySynapse).toBeDefined();
+      expect(entitySynapse?.targetEntityName).toBe('Jose Martines');
+    });
+
+    it('ambos casos de uso generan el mismo nodo ancla telefónico para interconectar el grafo', () => {
+      const taskIntent = OmnibarParser.parseToIntent(
+        'llamar al 610932115 el miercoles para confirmar la oferta',
+        { referenceDate },
+      );
+      const clientIntent = OmnibarParser.parseToIntent(
+        'Jose Martines 610932115 vive en Tortosa',
+        { referenceDate },
+      );
+
+      const taskPhone = taskIntent.synapses.find(
+        s => s.relationType === 'HAS_PHONE',
+      );
+      const clientPhone = clientIntent.synapses.find(
+        s => s.relationType === 'HAS_PHONE',
+      );
+
+      expect(taskPhone?.targetEntityName).toBe('610932115');
+      expect(clientPhone?.targetEntityName).toBe('610932115');
+      expect(taskPhone?.targetEntityName).toBe(clientPhone?.targetEntityName);
+    });
+  });
+
+  describe('Identificadores Fiscales Españoles (DNI, NIE, CIF - Paso 2)', () => {
+    it('detecta y valida un DNI español válido por algoritmo módulo 23', () => {
+      // 12345678 % 23 = 14 -> Z
+      const input = 'Firma de contrato de DNI 12345678Z en la oficina';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.documents).toHaveLength(1);
+
+      const doc = tokens.documents[0]!;
+
+      expect(doc.type).toBe('dni');
+      expect(doc.documentNumber).toBe('12345678Z');
+      expect(doc.isValid).toBe(true);
+    });
+
+    it('detecta un DNI con letra incorrecta y lo marca como inválido (isValid: false)', () => {
+      // 12345678 con letra A es errónea (debe ser Z)
+      const input = 'Comprobar datos con DNI 12345678A urgente';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.documents).toHaveLength(1);
+
+      const doc = tokens.documents[0]!;
+
+      expect(doc.type).toBe('dni');
+      expect(doc.documentNumber).toBe('12345678A');
+      expect(doc.isValid).toBe(false);
+    });
+
+    it('detecta y valida un NIE español válido (X, Y, Z)', () => {
+      // X1234567 -> 01234567 % 23 = 11 -> L
+      const input = 'Documentación extranjería NIE X1234567L pendiente';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.documents).toHaveLength(1);
+
+      const doc = tokens.documents[0]!;
+
+      expect(doc.type).toBe('nie');
+      expect(doc.documentNumber).toBe('X1234567L');
+      expect(doc.isValid).toBe(true);
+    });
+
+    it('detecta y valida un CIF de sociedad español válido', () => {
+      // CIF B12345674 (Sociedad de Responsabilidad Limitada)
+      const input = 'Facturar a la empresa con CIF B12345674';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.documents).toHaveLength(1);
+
+      const doc = tokens.documents[0]!;
+
+      expect(doc.type).toBe('cif');
+      expect(doc.documentNumber).toBe('B12345674');
+      expect(doc.isValid).toBe(true);
+    });
+
+    it('no confunde números de teléfono estándar con DNIs', () => {
+      const input = 'Llamar al 610932115 para pedir presupuesto';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.phones).toHaveLength(1);
+      expect(tokens.phones[0]?.number).toBe('610932115');
+      expect(tokens.documents).toHaveLength(0);
+    });
+
+    it('genera sinapsis HAS_DOCUMENT y clasifica como cliente si hay entidad + documento fiscal', () => {
+      const input = 'Jose Martines DNI 12345678Z socio fundador';
+      const intent = OmnibarParser.parseToIntent(input);
+
+      expect(intent.coreAtom.type).toBe('client');
+      expect(intent.coreAtom.title).toBe('Jose Martines');
+
+      const docSynapse = intent.synapses.find(
+        s => s.relationType === 'HAS_DOCUMENT',
+      );
+
+      expect(docSynapse).toBeDefined();
+      expect(docSynapse?.targetEntityName).toBe('12345678Z');
+
+      const payload = intent.coreAtom.payload as {
+        documents?: string[];
+      };
+
+      expect(payload.documents?.[0]).toBe('12345678Z');
+    });
+  });
+
+  describe('Detección y Normalización de Ubicaciones Geográficas (Paso 2)', () => {
+    it('extrae coordenadas GPS en formato decimal con latitud y longitud', () => {
+      const input = 'Inspección de terreno en 40.8123, 0.5214 mañana';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.locations).toHaveLength(1);
+
+      const loc = tokens.locations[0]!;
+
+      expect(loc.type).toBe('coordinates');
+      expect(loc.normalized).toBe('40.8123, 0.5214');
+    });
+
+    it('extrae coordenadas GPS con valores negativos', () => {
+      const input = 'Punto de encuentro en -34.6037, -58.3816 para entrega';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.locations).toHaveLength(1);
+
+      const loc = tokens.locations[0]!;
+
+      expect(loc.type).toBe('coordinates');
+      expect(loc.normalized).toBe('-34.6037, -58.3816');
+    });
+
+    it('extrae Plus Codes de Google Maps globales y locales', () => {
+      // Global
+      const inputGlobal = 'Instalación de fibra en 8FX28399+Q2 confirmada';
+      const tokensGlobal = OmnibarParser.extractTokens(inputGlobal);
+
+      expect(tokensGlobal.locations).toHaveLength(1);
+      expect(tokensGlobal.locations[0]?.type).toBe('plus_code');
+      expect(tokensGlobal.locations[0]?.normalized).toBe('8FX28399+Q2');
+
+      // Local con ciudad
+      const inputLocal = 'Descarga de material en 8399+Q2 Tortosa el viernes';
+      const tokensLocal = OmnibarParser.extractTokens(inputLocal);
+
+      expect(tokensLocal.locations).toHaveLength(1);
+      expect(tokensLocal.locations[0]?.type).toBe('plus_code');
+      expect(tokensLocal.locations[0]?.normalized).toBe('8399+Q2 Tortosa');
+    });
+
+    it('extrae direcciones viales en español (calles, avenidas, paseos)', () => {
+      const input = 'Visita técnica en c/ Pau Casals 12, 43870 Tortosa a las 16:00';
+      const tokens = OmnibarParser.extractTokens(input);
+
+      expect(tokens.locations).toHaveLength(1);
+
+      const loc = tokens.locations[0]!;
+
+      expect(loc.type).toBe('address');
+      expect(loc.normalized.toLowerCase()).toContain('pau casals 12');
+    });
+
+    it('genera sinapsis AT_LOCATION en el Intent para vincular la entidad geográfica', () => {
+      const input = 'Revisión de obra en calle Mayor 15 #Construcción';
+      const intent = OmnibarParser.parseToIntent(input);
+
+      const locSynapse = intent.synapses.find(
+        s => s.relationType === 'AT_LOCATION',
+      );
+
+      expect(locSynapse).toBeDefined();
+      expect(locSynapse?.targetEntityName?.toLowerCase()).toContain('calle mayor 15');
+
+      const payload = intent.coreAtom.payload as {
+        locations?: Array<{ normalized: string }>;
+      };
+
+      expect(payload.locations).toHaveLength(1);
     });
   });
 
@@ -180,18 +500,24 @@ describe('Omnibarra Mecánica: OmnibarParser', () => {
 
       // Caso A: Coincidencia con entidad existente
       const queryA = 'jose';
-      const matchesA = known.filter(e => e.name.toLowerCase().includes(queryA.toLowerCase()));
+      const matchesA = known.filter(e =>
+        e.name.toLowerCase().includes(queryA.toLowerCase()),
+      );
 
       expect(matchesA).toHaveLength(1);
       expect(matchesA[0]?.name).toBe('Jose Carlos');
 
       // Caso B: Entidad completamente nueva
       const queryB = 'Pedro';
-      const matchesB = known.filter(e => e.name.toLowerCase().includes(queryB.toLowerCase()));
+      const matchesB = known.filter(e =>
+        e.name.toLowerCase().includes(queryB.toLowerCase()),
+      );
 
       expect(matchesB).toHaveLength(0);
 
-      const isCreateNew = queryB.trim().length > 0 && !matchesB.some(m => m.name.toLowerCase() === queryB.toLowerCase());
+      const isCreateNew
+        = queryB.trim().length > 0
+          && !matchesB.some(m => m.name.toLowerCase() === queryB.toLowerCase());
 
       expect(isCreateNew).toBe(true);
     });
@@ -199,22 +525,45 @@ describe('Omnibarra Mecánica: OmnibarParser', () => {
     it('determina correctamente la huella molecular según los tokens presentes', () => {
       // Sin tokens -> inbox
       const tokensInbox = OmnibarParser.extractTokens('Comprar leche y pan');
-      const hasTokensInbox = tokensInbox.entities.length > 0 || tokensInbox.contexts.length > 0 || !!tokensInbox.temporal;
-      const typeInbox = hasTokensInbox ? (tokensInbox.temporal ? 'task' : 'note') : 'inbox';
+      const hasTokensInbox
+        = tokensInbox.entities.length > 0
+          || tokensInbox.contexts.length > 0
+          || !!tokensInbox.temporal;
+      const typeInbox = hasTokensInbox
+        ? tokensInbox.temporal
+          ? 'task'
+          : 'note'
+        : 'inbox';
 
       expect(typeInbox).toBe('inbox');
 
       // Con fecha -> task
       const tokensTask = OmnibarParser.extractTokens('Revisión //mañana');
-      const hasTokensTask = tokensTask.entities.length > 0 || tokensTask.contexts.length > 0 || !!tokensTask.temporal;
-      const typeTask = hasTokensTask ? (tokensTask.temporal ? 'task' : 'note') : 'inbox';
+      const hasTokensTask
+        = tokensTask.entities.length > 0
+          || tokensTask.contexts.length > 0
+          || !!tokensTask.temporal;
+      const typeTask = hasTokensTask
+        ? tokensTask.temporal
+          ? 'task'
+          : 'note'
+        : 'inbox';
 
       expect(typeTask).toBe('task');
 
       // Solo contexto sin fecha -> note
-      const tokensNote = OmnibarParser.extractTokens('Ideas para el blog #Marketing');
-      const hasTokensNote = tokensNote.entities.length > 0 || tokensNote.contexts.length > 0 || !!tokensNote.temporal;
-      const typeNote = hasTokensNote ? (tokensNote.temporal ? 'task' : 'note') : 'inbox';
+      const tokensNote = OmnibarParser.extractTokens(
+        'Ideas para el blog #Marketing',
+      );
+      const hasTokensNote
+        = tokensNote.entities.length > 0
+          || tokensNote.contexts.length > 0
+          || !!tokensNote.temporal;
+      const typeNote = hasTokensNote
+        ? tokensNote.temporal
+          ? 'task'
+          : 'note'
+        : 'inbox';
 
       expect(typeNote).toBe('note');
     });

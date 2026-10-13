@@ -26,6 +26,7 @@ import { ContextFilterBar } from '../components/ContextFilterBar';
 import { ViewModeSwitcher } from '../components/ViewModeSwitcher';
 import { MoleculeDetailModal } from '../detail/MoleculeDetailModal';
 import { MolecularKanbanBoard } from '../kanban/MolecularKanbanBoard';
+import { EntityLens } from '../lens/EntityLens';
 import { MoleculeCard } from './MoleculeCard';
 
 type FeedTab = 'all' | 'inbox' | 'note' | 'task';
@@ -40,6 +41,9 @@ export const MolecularFeed: React.FC = () => {
 
   const [selectedAtomId, setSelectedAtomId] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  const [lensAtomId, setLensAtomId] = useState<string | null>(null);
+  const [isLensOpen, setIsLensOpen] = useState(false);
 
   const [molecules, setMolecules] = useState<MolecularProjection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -454,6 +458,10 @@ export const MolecularFeed: React.FC = () => {
               onStatusFilterChange={setStatusFilter}
               onClearCell={() => setActiveFilterAtom(null)}
               onSelectCollaborator={handleFilterByAtom}
+              onOpenEntityLens={(atom) => {
+                setLensAtomId(atom.id);
+                setIsLensOpen(true);
+              }}
             />
           )
         : (
@@ -463,6 +471,10 @@ export const MolecularFeed: React.FC = () => {
               statusFilter={statusFilter}
               onStatusFilterChange={setStatusFilter}
               onClearFilter={() => setActiveFilterAtom(null)}
+              onOpenEntityLens={(atom) => {
+                setLensAtomId(atom.id);
+                setIsLensOpen(true);
+              }}
               onSelectFilter={atomStub => handleFilterByAtom({
                 id: atomStub.id,
                 organizationId: '',
@@ -654,6 +666,19 @@ export const MolecularFeed: React.FC = () => {
         onAtomMutated={handleAtomMutated}
         onAtomDeleted={handleAtomDeletedFromDetail}
         onFilterByAtom={handleFilterByAtom}
+      />
+
+      {/* Lente Molecular de Cliente / Entidad */}
+      <EntityLens
+        isOpen={isLensOpen}
+        atomId={lensAtomId}
+        onClose={() => {
+          setIsLensOpen(false);
+          setLensAtomId(null);
+        }}
+        onAtomMutated={handleAtomMutated}
+        onOpenAtomDetail={handleOpenDetail}
+        onFilterByEntity={handleFilterByAtom}
       />
 
       {/* Botón Flotante de Acción (FAB) para Teléfonos y Tablets */}

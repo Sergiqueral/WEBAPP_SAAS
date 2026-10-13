@@ -1,16 +1,35 @@
-import type { IngestIntent, MolecularProjection, TenantContext } from '@/modules/codex/domain/types';
-import { and, eq, sql } from 'drizzle-orm';
+import type {
+  Atom,
+  IngestIntent,
+  MolecularProjection,
+  TenantContext,
+} from '@/modules/codex/domain/types';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/libs/DB';
-import { atomsSchema } from '@/modules/codex/db/schema';
+import { atomsSchema, linksSchema } from '@/modules/codex/db/schema';
 import { AtomRepository } from '@/modules/codex/domain/repositories/AtomRepository';
 import { SynapseRepository } from '@/modules/codex/domain/repositories/SynapseRepository';
 import { AccessGuard } from '@/modules/codex/domain/security/AccessGuard';
-import { IngestIntentSchema } from '@/modules/codex/domain/types';
+import { AtomSchema, IngestIntentSchema } from '@/modules/codex/domain/types';
 import { OmnibarParser } from '@/modules/codex/omnibar/parser/OmnibarParser';
 
 export type IngestOptions = {
   knownEntities?: Array<{ id: string; name: string }>;
   referenceDate?: Date;
+};
+
+export type ResolvedIdentityResult = {
+  clientAtom: Atom | null;
+  isAmbiguous: boolean;
+  candidateAtomIds: string[];
+  matchType:
+    | 'hard_phone'
+    | 'hard_email'
+    | 'hard_document'
+    | 'soft_unique'
+    | 'soft_ambiguous'
+    | 'none';
+  matchedValue?: string;
 };
 
 export class OmnibarReactor {
@@ -59,12 +78,260 @@ export class OmnibarReactor {
   }
 
   /**
+   * Resolución de Identidad Molecular:
+   * 1. Hard Anchors (Únicos): Teléfonos, Emails, DNI/NIE/CIF válidos.
+   * 2. Soft Anchors (Reutilizables/Homónimos): Nombres de personas o empresas.
+   *    - Si hay 1 coincidencia exacta -> Vincula.
+   *    - Si hay múltiples coincidencias -> Alerta de ambigüedad (no asume a ciegas).
+   */
+  static async resolveExistingIdentity(
+    context: TenantContext,
+    params: {
+      phones?: string[];
+      emails?: string[];
+      documents?: string[];
+      names?: string[];
+    },
+  ): Promise<ResolvedIdentityResult> {
+    const { phones = [], emails = [], documents = [], names = [] } = params;
+
+    // A) HARD ANCHORS: Teléfonos
+    for (const phone of phones) {
+      // 1. En payload de cliente/contacto
+      const [direct] = await db
+        .select()
+        .from(atomsSchema)
+        .where(
+          and(
+            eq(atomsSchema.organizationId, context.organizationId),
+            inArray(atomsSchema.type, ['client', 'contact']),
+            sql`(
+              ${atomsSchema.payload} @> ${JSON.stringify({ phones: [phone] })}::jsonb
+              OR ${atomsSchema.payload}->>'phone' = ${phone}
+              OR ${atomsSchema.payload}->>'name' = ${phone}
+            )`,
+          ),
+        )
+        .limit(1);
+
+      if (direct) {
+        return {
+          clientAtom: AtomSchema.parse(direct),
+          isAmbiguous: false,
+          candidateAtomIds: [],
+          matchType: 'hard_phone',
+          matchedValue: phone,
+        };
+      }
+
+      // 2. Enlace a anchor_phone
+      const [anchorLink] = await db
+        .select({ client: atomsSchema })
+        .from(linksSchema)
+        .innerJoin(atomsSchema, eq(atomsSchema.id, linksSchema.sourceAtomId))
+        .where(
+          and(
+            eq(linksSchema.organizationId, context.organizationId),
+            eq(linksSchema.relationType, 'HAS_PHONE'),
+            inArray(atomsSchema.type, ['client', 'contact']),
+            sql`EXISTS (
+              SELECT 1 FROM ${atomsSchema} a_anchor
+              WHERE a_anchor.id = ${linksSchema.targetAtomId}
+                AND a_anchor.organization_id = ${context.organizationId}
+                AND a_anchor.type = 'anchor_phone'
+                AND LOWER(a_anchor.payload->>'name') = LOWER(${phone})
+            )`,
+          ),
+        )
+        .limit(1);
+
+      if (anchorLink) {
+        return {
+          clientAtom: AtomSchema.parse(anchorLink.client),
+          isAmbiguous: false,
+          candidateAtomIds: [],
+          matchType: 'hard_phone',
+          matchedValue: phone,
+        };
+      }
+    }
+
+    // B) HARD ANCHORS: Emails
+    for (const email of emails) {
+      const [direct] = await db
+        .select()
+        .from(atomsSchema)
+        .where(
+          and(
+            eq(atomsSchema.organizationId, context.organizationId),
+            inArray(atomsSchema.type, ['client', 'contact']),
+            sql`(
+              ${atomsSchema.payload} @> ${JSON.stringify({ emails: [email] })}::jsonb
+              OR LOWER(${atomsSchema.payload}->>'email') = LOWER(${email})
+            )`,
+          ),
+        )
+        .limit(1);
+
+      if (direct) {
+        return {
+          clientAtom: AtomSchema.parse(direct),
+          isAmbiguous: false,
+          candidateAtomIds: [],
+          matchType: 'hard_email',
+          matchedValue: email,
+        };
+      }
+
+      const [anchorLink] = await db
+        .select({ client: atomsSchema })
+        .from(linksSchema)
+        .innerJoin(atomsSchema, eq(atomsSchema.id, linksSchema.sourceAtomId))
+        .where(
+          and(
+            eq(linksSchema.organizationId, context.organizationId),
+            eq(linksSchema.relationType, 'HAS_EMAIL'),
+            inArray(atomsSchema.type, ['client', 'contact']),
+            sql`EXISTS (
+              SELECT 1 FROM ${atomsSchema} a_anchor
+              WHERE a_anchor.id = ${linksSchema.targetAtomId}
+                AND a_anchor.organization_id = ${context.organizationId}
+                AND a_anchor.type = 'anchor_email'
+                AND LOWER(a_anchor.payload->>'name') = LOWER(${email})
+            )`,
+          ),
+        )
+        .limit(1);
+
+      if (anchorLink) {
+        return {
+          clientAtom: AtomSchema.parse(anchorLink.client),
+          isAmbiguous: false,
+          candidateAtomIds: [],
+          matchType: 'hard_email',
+          matchedValue: email,
+        };
+      }
+    }
+
+    // C) HARD ANCHORS: Documentos de Identidad Fiscal (DNI, NIE, CIF)
+    for (const doc of documents) {
+      const [direct] = await db
+        .select()
+        .from(atomsSchema)
+        .where(
+          and(
+            eq(atomsSchema.organizationId, context.organizationId),
+            inArray(atomsSchema.type, ['client', 'contact']),
+            sql`(
+              ${atomsSchema.payload} @> ${JSON.stringify({ documents: [doc] })}::jsonb
+              OR UPPER(${atomsSchema.payload}->>'document') = UPPER(${doc})
+              OR UPPER(${atomsSchema.payload}->>'dni') = UPPER(${doc})
+              OR UPPER(${atomsSchema.payload}->>'cif') = UPPER(${doc})
+              OR UPPER(${atomsSchema.payload}->>'nie') = UPPER(${doc})
+              OR UPPER(${atomsSchema.payload}->>'nif') = UPPER(${doc})
+            )`,
+          ),
+        )
+        .limit(1);
+
+      if (direct) {
+        return {
+          clientAtom: AtomSchema.parse(direct),
+          isAmbiguous: false,
+          candidateAtomIds: [],
+          matchType: 'hard_document',
+          matchedValue: doc,
+        };
+      }
+
+      const [anchorLink] = await db
+        .select({ client: atomsSchema })
+        .from(linksSchema)
+        .innerJoin(atomsSchema, eq(atomsSchema.id, linksSchema.sourceAtomId))
+        .where(
+          and(
+            eq(linksSchema.organizationId, context.organizationId),
+            eq(linksSchema.relationType, 'HAS_DOCUMENT'),
+            inArray(atomsSchema.type, ['client', 'contact']),
+            sql`EXISTS (
+              SELECT 1 FROM ${atomsSchema} a_anchor
+              WHERE a_anchor.id = ${linksSchema.targetAtomId}
+                AND a_anchor.organization_id = ${context.organizationId}
+                AND a_anchor.type = 'anchor_document'
+                AND UPPER(a_anchor.payload->>'name') = UPPER(${doc})
+            )`,
+          ),
+        )
+        .limit(1);
+
+      if (anchorLink) {
+        return {
+          clientAtom: AtomSchema.parse(anchorLink.client),
+          isAmbiguous: false,
+          candidateAtomIds: [],
+          matchType: 'hard_document',
+          matchedValue: doc,
+        };
+      }
+    }
+
+    // D) SOFT ANCHORS: Nombres Propios (con detección de homónimos)
+    for (const name of names) {
+      const cleanName = name.trim();
+      if (!cleanName) {
+        continue;
+      }
+
+      const candidates = await db
+        .select()
+        .from(atomsSchema)
+        .where(
+          and(
+            eq(atomsSchema.organizationId, context.organizationId),
+            inArray(atomsSchema.type, ['client', 'contact']),
+            sql`(
+              LOWER(${atomsSchema.payload}->>'name') = LOWER(${cleanName})
+              OR LOWER(${atomsSchema.payload}->>'title') = LOWER(${cleanName})
+            )`,
+          ),
+        )
+        .limit(10);
+
+      if (candidates.length === 1 && candidates[0]) {
+        return {
+          clientAtom: AtomSchema.parse(candidates[0]),
+          isAmbiguous: false,
+          candidateAtomIds: [],
+          matchType: 'soft_unique',
+          matchedValue: cleanName,
+        };
+      } else if (candidates.length > 1) {
+        return {
+          clientAtom: null,
+          isAmbiguous: true,
+          candidateAtomIds: candidates.map(c => c.id),
+          matchType: 'soft_ambiguous',
+          matchedValue: cleanName,
+        };
+      }
+    }
+
+    return {
+      clientAtom: null,
+      isAmbiguous: false,
+      candidateAtomIds: [],
+      matchType: 'none',
+    };
+  }
+
+  /**
    * Procesa la ingesta molecular:
    * 1. Valida permisos de escritura con AccessGuard (bloquea viewers).
    * 2. Si el input es un string, lo analiza con OmnibarParser.
-   * 3. Resuelve o sintetiza las entidades (@) y contextos (#).
-   * 4. Sintetiza el átomo central (task, note, inbox).
-   * 5. Establece las sinapsis químicas con deduplicación.
+   * 3. Ejecuta la Resolución de Identidad (Hard/Soft Anchors).
+   * 4. Sintetiza o enriquece el átomo central (task, client, note, inbox).
+   * 5. Establece las sinapsis químicas con bidireccionalidad.
    * 6. Devuelve la proyección molecular completa.
    */
   static async ingest(
@@ -80,21 +347,106 @@ export class OmnibarReactor {
       ? OmnibarParser.parseToIntent(input, options)
       : IngestIntentSchema.parse(input);
 
-    // 3. Resolver identificadores de sinapsis (@ y #)
+    // 3. Resolución de Identidad en BD
+    const phones = (intent.coreAtom.payload.phones as string[]) ?? [];
+    const emails = (intent.coreAtom.payload.emails as string[]) ?? [];
+    const documents = (intent.coreAtom.payload.documents as string[]) ?? [];
+    const names = intent.synapses
+      .filter(s => s.relationType === 'ASSIGNED_TO' && s.targetEntityName)
+      .map(s => s.targetEntityName!);
+
+    const identityResolution = await this.resolveExistingIdentity(context, {
+      phones,
+      emails,
+      documents,
+      names,
+    });
+
+    // CASO ESPECIAL: Si la entrada es un arquetipo 'client' y ya existe dicho cliente, enriquecerlo sin duplicar
+    if (intent.coreAtom.type === 'client' && identityResolution.clientAtom) {
+      const existingClient = identityResolution.clientAtom;
+      const existingPayload = (existingClient.payload as Record<string, unknown>) ?? {};
+
+      const mergedPhones = Array.from(new Set([
+        ...((existingPayload.phones as string[]) ?? []),
+        ...(existingPayload.phone ? [existingPayload.phone as string] : []),
+        ...phones,
+      ]));
+      const mergedEmails = Array.from(new Set([
+        ...((existingPayload.emails as string[]) ?? []),
+        ...(existingPayload.email ? [existingPayload.email as string] : []),
+        ...emails,
+      ]));
+      const mergedDocs = Array.from(new Set([
+        ...((existingPayload.documents as string[]) ?? []),
+        ...documents,
+      ]));
+      const mergedLocations = [
+        ...((existingPayload.locations as unknown[]) ?? []),
+        ...((intent.coreAtom.payload.locations as unknown[]) ?? []),
+      ];
+
+      const updated = await AtomRepository.updateAtom(context, existingClient.id, {
+        payload: {
+          ...existingPayload,
+          ...(intent.coreAtom.title && intent.coreAtom.title !== 'inbox'
+            ? { name: intent.coreAtom.title }
+            : {}),
+          phones: mergedPhones,
+          emails: mergedEmails,
+          documents: mergedDocs,
+          locations: mergedLocations,
+        },
+        metadata: {
+          ...((existingClient.metadata as Record<string, unknown>) ?? {}),
+          last_enriched_at: new Date().toISOString(),
+          enriched_by_omnibar: true,
+        },
+      });
+
+      // Conectar sinapsis pendientes
+      for (const syn of intent.synapses) {
+        let targetId = syn.targetAtomId;
+        if (!targetId && syn.targetEntityName) {
+          targetId = await this.findOrCreateAtom(context, syn.targetType, syn.targetEntityName);
+        }
+        if (targetId && targetId !== updated.id) {
+          try {
+            await SynapseRepository.createSynapse(context, {
+              sourceAtomId: updated.id,
+              targetAtomId: targetId,
+              relationType: syn.relationType,
+              metadata: syn.metadata ?? {},
+            });
+          } catch {
+            // Ignorar duplicados
+          }
+        }
+      }
+
+      return SynapseRepository.getMolecule(context, updated.id);
+    }
+
+    // 4. Resolver identificadores de sinapsis (@ y #)
     const resolvedTargets: Array<{
       targetAtomId: string;
       relationType: string;
       metadata: Record<string, unknown>;
     }> = [];
 
-    // Conjunto para evitar crear dos veces el mismo enlace en la misma ingesta
     const seenSynapses = new Set<string>();
 
     for (const syn of intent.synapses) {
       let targetId = syn.targetAtomId;
 
-      if (!targetId && syn.targetEntityName) {
-        // Encontrar o crear átomo de entidad o contexto
+      // Si la sinapsis es ASSIGNED_TO y resolvimos un cliente existente único, conectar directamente al cliente
+      if (
+        !targetId
+        && syn.relationType === 'ASSIGNED_TO'
+        && identityResolution.clientAtom
+      ) {
+        targetId = identityResolution.clientAtom.id;
+      } else if (!targetId && syn.targetEntityName) {
         targetId = await this.findOrCreateAtom(
           context,
           syn.targetType,
@@ -115,7 +467,7 @@ export class OmnibarReactor {
       }
     }
 
-    // 4. Sintetizar Átomo Central
+    // 5. Sintetizar Átomo Central
     const coreMetadata: Record<string, unknown> = {
       ...intent.metadata,
       provenance: intent.source,
@@ -127,28 +479,86 @@ export class OmnibarReactor {
       coreMetadata.raw_expression = intent.temporal.rawExpression;
     }
 
+    if (identityResolution.isAmbiguous) {
+      coreMetadata.identity_ambiguity = {
+        isAmbiguous: true,
+        candidateAtomIds: identityResolution.candidateAtomIds,
+        reason: identityResolution.matchType,
+        matchedValue: identityResolution.matchedValue,
+      };
+    }
+
+    const coreAtomPayload: Record<string, unknown> = {
+      title: intent.coreAtom.title,
+      ...(intent.coreAtom.content ? { content: intent.coreAtom.content } : {}),
+      ...(intent.temporal ? { dueDate: intent.temporal.dueDate.toISOString() } : {}),
+      ...intent.coreAtom.payload,
+    };
+
+    if (intent.coreAtom.type === 'client') {
+      coreAtomPayload.name = intent.coreAtom.title;
+    }
+
     const coreAtom = await AtomRepository.createAtom(context, {
       type: intent.coreAtom.type,
-      payload: {
-        title: intent.coreAtom.title,
-        ...(intent.coreAtom.content ? { content: intent.coreAtom.content } : {}),
-        ...(intent.temporal ? { dueDate: intent.temporal.dueDate.toISOString() } : {}),
-        ...intent.coreAtom.payload,
-      },
+      payload: coreAtomPayload,
       metadata: coreMetadata,
     });
 
-    // 5. Establecer Sinapsis
+    // 6. Establecer Sinapsis
     for (const item of resolvedTargets) {
-      await SynapseRepository.createSynapse(context, {
-        sourceAtomId: coreAtom.id,
-        targetAtomId: item.targetAtomId,
-        relationType: item.relationType,
-        metadata: item.metadata,
-      });
+      try {
+        await SynapseRepository.createSynapse(context, {
+          sourceAtomId: coreAtom.id,
+          targetAtomId: item.targetAtomId,
+          relationType: item.relationType,
+          metadata: item.metadata,
+        });
+      } catch {
+        // Ignorar colisiones de índice único
+      }
     }
 
-    // 6. Proyectar y retornar la molécula completa
+    // 7. Auto-vinculación Bidireccional si se identificó un cliente existente para esta tarea/nota
+    if (
+      identityResolution.clientAtom
+      && identityResolution.clientAtom.id !== coreAtom.id
+    ) {
+      const clientId = identityResolution.clientAtom.id;
+
+      // Enlace Saliente: Tarea/Nota -> Cliente
+      try {
+        await SynapseRepository.createSynapse(context, {
+          sourceAtomId: coreAtom.id,
+          targetAtomId: clientId,
+          relationType: 'ASSIGNED_TO',
+          metadata: {
+            auto_resolved: true,
+            matchType: identityResolution.matchType,
+            matchedValue: identityResolution.matchedValue,
+          },
+        });
+      } catch {
+        // Enlace ya existe
+      }
+
+      // Enlace Entrante Bidireccional: Cliente -> Tarea/Nota (RELATED_TO)
+      try {
+        await SynapseRepository.createSynapse(context, {
+          sourceAtomId: clientId,
+          targetAtomId: coreAtom.id,
+          relationType: 'RELATED_TO',
+          metadata: {
+            auto_resolved: true,
+            reverse_of: 'ASSIGNED_TO',
+          },
+        });
+      } catch {
+        // Enlace ya existe
+      }
+    }
+
+    // 8. Proyectar y retornar la molécula completa
     const molecule = await SynapseRepository.getMolecule(context, coreAtom.id);
     if (!molecule) {
       throw new Error('Error al proyectar la molécula resultante');

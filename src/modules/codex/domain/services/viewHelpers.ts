@@ -181,3 +181,203 @@ export function getMonthLabel(year: number, month: number, locale = 'es-ES'): st
   const monthName = d.toLocaleDateString(locale, { month: 'long' });
   return `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
 }
+
+// ==========================================
+// LENTE MOLECULAR DE ENTIDAD (EntityLens Helpers)
+// ==========================================
+
+export type AggregatedEntityIdentity = {
+  primaryName: string;
+  phones: string[];
+  emails: string[];
+  documents: Array<{ documentNumber: string; type: string; isValid: boolean }>;
+  locations: Array<{ normalized: string; type: string; coordinates?: { lat: number; lng: number } }>;
+  tasks: MolecularProjection[];
+  notes: MolecularProjection[];
+  documentsClusters: MolecularProjection[];
+  events: MolecularProjection[];
+  allConnected: MolecularProjection[];
+  synapses: Array<{
+    linkId: string;
+    relationType: string;
+    neighbor: Atom;
+    direction: 'outgoing' | 'incoming';
+  }>;
+};
+
+/**
+ * Agrega y clasifica todos los átomos dispersos y anclajes moleculares
+ * vinculados a un cliente o entidad en el grafo Codex.
+ */
+export function aggregateEntityIdentity(
+  rootAtom: Atom | null,
+  connectedMolecules: MolecularProjection[] = [],
+  rootMolecule?: MolecularProjection | null,
+): AggregatedEntityIdentity {
+  const rootPayload = (rootAtom?.payload ?? {}) as Record<string, unknown>;
+
+  // 1. Extraer nombre principal
+  let primaryName = typeof rootPayload.name === 'string' && rootPayload.name.trim()
+    ? rootPayload.name.trim()
+    : typeof rootPayload.title === 'string' && rootPayload.title.trim()
+      ? rootPayload.title.trim()
+      : '';
+
+  // 2. Extraer teléfonos (Hard Anchors)
+  const phoneSet = new Set<string>();
+  if (Array.isArray(rootPayload.phones)) {
+    for (const p of rootPayload.phones) {
+      if (typeof p === 'string' && p.trim()) {
+        phoneSet.add(p.trim());
+      }
+    }
+  }
+  if (typeof rootPayload.phone === 'string' && rootPayload.phone.trim()) {
+    phoneSet.add(rootPayload.phone.trim());
+  }
+
+  // 3. Extraer emails (Hard Anchors)
+  const emailSet = new Set<string>();
+  if (Array.isArray(rootPayload.emails)) {
+    for (const e of rootPayload.emails) {
+      if (typeof e === 'string' && e.trim()) {
+        emailSet.add(e.trim().toLowerCase());
+      }
+    }
+  }
+  if (typeof rootPayload.email === 'string' && rootPayload.email.trim()) {
+    emailSet.add(rootPayload.email.trim().toLowerCase());
+  }
+
+  // 4. Extraer documentos fiscales (DNI, NIE, CIF)
+  const docMap = new Map<string, { documentNumber: string; type: string; isValid: boolean }>();
+  if (Array.isArray(rootPayload.documents)) {
+    for (const d of rootPayload.documents as Array<{ documentNumber?: string; type?: string; isValid?: boolean }>) {
+      if (d && typeof d.documentNumber === 'string') {
+        docMap.set(d.documentNumber, {
+          documentNumber: d.documentNumber,
+          type: d.type ?? 'DNI',
+          isValid: Boolean(d.isValid),
+        });
+      }
+    }
+  }
+
+  // 5. Extraer ubicaciones geográficas (GPS, Plus Codes, Direcciones)
+  const locMap = new Map<string, { normalized: string; type: string; coordinates?: { lat: number; lng: number } }>();
+  if (Array.isArray(rootPayload.locations)) {
+    for (const loc of rootPayload.locations as Array<{ normalized?: string; type?: string; coordinates?: { lat: number; lng: number } }>) {
+      if (loc && typeof loc.normalized === 'string') {
+        locMap.set(loc.normalized, {
+          normalized: loc.normalized,
+          type: loc.type ?? 'address',
+          coordinates: loc.coordinates,
+        });
+      }
+    }
+  }
+
+  // 6. Recorrer moléculas conectadas para enriquecer anclajes y clasificar clusters
+  const tasks: MolecularProjection[] = [];
+  const notes: MolecularProjection[] = [];
+  const documentsClusters: MolecularProjection[] = [];
+  const events: MolecularProjection[] = [];
+
+  for (const mol of connectedMolecules) {
+    const payload = (mol.root.payload ?? {}) as Record<string, unknown>;
+    const text = String(payload.title ?? payload.content ?? payload.name ?? '');
+
+    // Buscar si aporta teléfonos adicionales
+    if (Array.isArray(payload.phones)) {
+      for (const p of payload.phones) {
+        if (typeof p === 'string') {
+          phoneSet.add(p.trim());
+        }
+      }
+    }
+
+    // Buscar si aporta emails adicionales
+    if (Array.isArray(payload.emails)) {
+      for (const e of payload.emails) {
+        if (typeof e === 'string') {
+          emailSet.add(e.trim().toLowerCase());
+        }
+      }
+    }
+
+    // Buscar si aporta documentos
+    if (Array.isArray(payload.documents)) {
+      for (const d of payload.documents as Array<{ documentNumber?: string; type?: string; isValid?: boolean }>) {
+        if (d && typeof d.documentNumber === 'string' && !docMap.has(d.documentNumber)) {
+          docMap.set(d.documentNumber, {
+            documentNumber: d.documentNumber,
+            type: d.type ?? 'DNI',
+            isValid: Boolean(d.isValid),
+          });
+        }
+      }
+    }
+
+    // Clasificación por cluster
+    const isTask = mol.root.type === 'task' || typeof payload.status === 'string';
+    const isDoc = mol.root.type === 'document' || /\b(?:oferta|presupuesto|contrato|factura|albar[aá]n|recibo)\b/i.test(text);
+    const isEvent = mol.root.type === 'event' || Boolean(payload.eventDate);
+    const isNote = mol.root.type === 'note' || mol.root.type === 'inbox';
+
+    if (isTask) {
+      tasks.push(mol);
+    } else if (isDoc) {
+      documentsClusters.push(mol);
+    } else if (isEvent) {
+      events.push(mol);
+    } else if (isNote) {
+      notes.push(mol);
+    } else {
+      notes.push(mol);
+    }
+  }
+
+  // Si no había nombre principal en la raíz, intentar deducirlo de los vecinos
+  if (!primaryName) {
+    primaryName = phoneSet.size > 0
+      ? `Contacto ${Array.from(phoneSet)[0]}`
+      : emailSet.size > 0
+        ? `Contacto ${Array.from(emailSet)[0]}`
+        : 'Entidad / Cliente';
+  }
+
+  // 7. Extraer sinapsis de primer nivel
+  const synapses: AggregatedEntityIdentity['synapses'] = [];
+  if (rootMolecule) {
+    for (const syn of rootMolecule.outgoing) {
+      synapses.push({
+        linkId: syn.linkId,
+        relationType: syn.relationType,
+        neighbor: syn.atom,
+        direction: 'outgoing',
+      });
+    }
+    for (const syn of rootMolecule.incoming) {
+      synapses.push({
+        linkId: syn.linkId,
+        relationType: syn.relationType,
+        neighbor: syn.atom,
+        direction: 'incoming',
+      });
+    }
+  }
+
+  return {
+    primaryName,
+    phones: Array.from(phoneSet),
+    emails: Array.from(emailSet),
+    documents: Array.from(docMap.values()),
+    locations: Array.from(locMap.values()),
+    tasks,
+    notes,
+    documentsClusters,
+    events,
+    allConnected: connectedMolecules,
+    synapses,
+  };
+}
