@@ -40,8 +40,9 @@ export const SignUpForm: React.FC<{ locale: string }> = ({ locale }) => {
         return;
       }
 
-      router.push(`/${locale}/dashboard`);
+      router.push(`/${locale}/verify-email?email=${encodeURIComponent(email)}`);
       router.refresh();
+
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al conectar con el servidor';
       setError(msg);

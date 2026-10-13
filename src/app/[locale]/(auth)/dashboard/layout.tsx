@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { DashboardHeader } from '@/features/dashboard/DashboardHeader';
+import { getServerAuthSession } from '@/libs/auth/server-auth';
 
 type DashboardLayoutProps = {
   params: Promise<{ locale: string }>;
@@ -24,10 +26,19 @@ export default async function DashboardLayout(props: DashboardLayoutProps) {
   const { locale } = await props.params;
   setRequestLocale(locale);
 
+  const session = await getServerAuthSession();
+  if (!session.userId) {
+    redirect(`/${locale}/sign-in`);
+  }
+  if (!session.emailVerified && !session.isSuperadmin) {
+    redirect(`/${locale}/verify-email?email=${encodeURIComponent(session.userEmail || '')}`);
+  }
+
   const t = await getTranslations({
     locale,
     namespace: 'DashboardLayout',
   });
+
 
   return (
     <>

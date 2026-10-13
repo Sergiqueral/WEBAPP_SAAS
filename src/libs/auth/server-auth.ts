@@ -5,6 +5,7 @@ export type AuthSessionResult = {
   userId: string | null;
   userEmail: string | null;
   userName: string | null;
+  emailVerified: boolean;
   orgId: string | null;
   orgRole: string | null;
   isSuperadmin: boolean;
@@ -22,6 +23,7 @@ export async function getServerAuthSession(): Promise<AuthSessionResult> {
         userId: null,
         userEmail: null,
         userName: null,
+        emailVerified: false,
         orgId: null,
         orgRole: null,
         isSuperadmin: false,
@@ -30,6 +32,7 @@ export async function getServerAuthSession(): Promise<AuthSessionResult> {
 
     const email = session.user.email?.toLowerCase() || '';
     const isSuperadmin = email === 'squeral@serveix.me' || email.endsWith('@serveix.me');
+    const emailVerified = Boolean(session.user.emailVerified) || isSuperadmin;
     const activeOrgId = session.session?.activeOrganizationId || null;
 
     let orgRole: string | null = null;
@@ -48,6 +51,7 @@ export async function getServerAuthSession(): Promise<AuthSessionResult> {
       userId: session.user.id,
       userEmail: email,
       userName: session.user.name || null,
+      emailVerified,
       orgId: activeOrgId,
       orgRole: isSuperadmin ? 'owner' : orgRole,
       isSuperadmin,
@@ -57,9 +61,11 @@ export async function getServerAuthSession(): Promise<AuthSessionResult> {
       userId: null,
       userEmail: null,
       userName: null,
+      emailVerified: false,
       orgId: null,
       orgRole: null,
       isSuperadmin: false,
     };
   }
 }
+

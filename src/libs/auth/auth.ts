@@ -2,6 +2,7 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { organization } from 'better-auth/plugins';
 import { db } from '@/libs/DB';
+import { sendVerificationEmail } from '@/libs/mail/mailer';
 import * as schema from './schema';
 
 export const auth = betterAuth({
@@ -20,6 +21,18 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendVerificationEmail({
+        to: user.email,
+        name: user.name,
+        verificationUrl: url,
+      });
+    },
+  },
+
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID || '',

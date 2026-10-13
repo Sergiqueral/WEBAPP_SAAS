@@ -28,7 +28,6 @@
     "db:migrate": "dotenv -c -- drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "auth:seed": "dotenv -c -- tsx src/libs/auth/seed-superadmin.ts",
-
     "storybook": "storybook dev -p 6006",
     "storybook:test": "vitest run --config .storybook/vitest.config.ts",
     "build-storybook": "storybook build"
@@ -51,6 +50,7 @@
     "lucide-react": "^1.18.0",
     "next": "^16.2.9",
     "next-intl": "^4.13.0",
+    "nodemailer": "^10.1.0",
     "pg": "^8.21.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
@@ -79,6 +79,7 @@
     "@swc/helpers": "^0.5.23",
     "@tailwindcss/postcss": "^4.3.1",
     "@types/node": "^25.9.3",
+    "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.20.0",
     "@types/react": "^19.2.17",
     "@vitejs/plugin-react": "^6.0.2",
