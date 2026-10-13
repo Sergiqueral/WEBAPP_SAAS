@@ -1,14 +1,16 @@
 'use client';
 
-import { Check, KeyRound, Loader2, Mail, ShieldCheck, User } from 'lucide-react';
+import { Check, KeyRound, Loader2, Mail, ShieldCheck, User, Wrench } from 'lucide-react';
 import React, { useState } from 'react';
 import { authClient } from '@/libs/auth/auth-client';
+import { SuperadminPanelModal } from '@/modules/licensing';
 
 export const UserProfileView: React.FC = () => {
   const { data: session } = authClient.useSession();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [isSuperadminModalOpen, setIsSuperadminModalOpen] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   if (!session) {
@@ -22,6 +24,8 @@ export const UserProfileView: React.FC = () => {
   const { user } = session;
   const email = user.email?.toLowerCase() || '';
   const isSuperadmin = email === 'squeral@serveix.me' || email.endsWith('@serveix.me');
+  const activeOrgId = (session.session as { activeOrganizationId?: string | null })?.activeOrganizationId || 'org_serveix_master';
+
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,12 +141,54 @@ export const UserProfileView: React.FC = () => {
         </div>
       </div>
 
+      {/* Tarjeta de Superadmin si aplica */}
+      {isSuperadmin && (
+        <div className="
+          rounded-2xl border border-amber-500/30 bg-amber-950/20 p-6 shadow-xl
+          backdrop-blur-md
+        "
+        >
+          <div className="
+            flex flex-col justify-between gap-4
+            sm:flex-row sm:items-center
+          "
+          >
+            <div>
+              <h4 className="
+                flex items-center gap-2 text-base font-semibold text-amber-400
+              "
+              >
+                <ShieldCheck className="size-5" />
+                <span>Consola de Superadministrador</span>
+              </h4>
+              <p className="mt-1 text-xs text-amber-200/70">
+                Tienes permisos maestros sobre Gorila SaaS. Puedes modificar planes de organizaciones, blindar cuentas contra borrado y gestionar complementos.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsSuperadminModalOpen(true)}
+              className="
+                inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5
+                text-xs font-bold text-black shadow-lg shadow-amber-500/20
+                transition
+                hover:bg-amber-400
+              "
+            >
+              <Wrench className="size-4" />
+              <span>Abrir Panel Superadmin</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tarjeta de Seguridad y Contraseña */}
       <div className="
         rounded-2xl border border-zinc-800 bg-zinc-950/80 p-6 shadow-xl
         backdrop-blur-md
       "
       >
+
         <h4 className="
           mb-4 flex items-center gap-2 text-base font-semibold text-white
         "
@@ -230,6 +276,15 @@ export const UserProfileView: React.FC = () => {
           </button>
         </form>
       </div>
+
+      {isSuperadmin && (
+        <SuperadminPanelModal
+          isOpen={isSuperadminModalOpen}
+          onClose={() => setIsSuperadminModalOpen(false)}
+          organizationId={activeOrgId}
+        />
+      )}
     </div>
   );
 };
+
