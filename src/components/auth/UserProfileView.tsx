@@ -174,9 +174,10 @@ export const UserProfileView: React.FC = () => {
               <Link
                 href="/dashboard/admin"
                 className="
-                  inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4
-                  py-2.5 text-xs font-bold text-black shadow-xs transition
-                  hover:bg-amber-400
+                  inline-flex items-center gap-2 rounded-xl bg-primary px-4
+                  py-2.5 text-xs font-semibold text-primary-foreground shadow-xs
+                  transition
+                  hover:bg-primary/90
                 "
               >
                 <Wrench className="size-4" />

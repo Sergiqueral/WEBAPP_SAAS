@@ -384,10 +384,11 @@ export const PreferencesModal: React.FC = () => {
                               type="button"
                               onClick={() => setIsSuperadminOpen(true)}
                               className="
-                                flex items-center gap-2 rounded-xl bg-amber-500
-                                px-4 py-2 text-xs font-semibold text-black
-                                shadow-xs transition-opacity
-                                hover:opacity-90
+                                flex items-center gap-2 rounded-xl bg-primary
+                                px-4 py-2 text-xs font-semibold
+                                text-primary-foreground shadow-xs
+                                transition-opacity
+                                hover:bg-primary/90
                               "
                             >
                               <Wrench className="size-3.5" />

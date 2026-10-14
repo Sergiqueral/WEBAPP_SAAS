@@ -238,6 +238,17 @@ export type ParsedLocationToken = {
   endIndex: number;
 };
 
+export type SyntagmaChunkType = 'address' | 'contact' | 'entity' | 'event' | 'general' | 'task';
+
+export type ParsedSyntagmaChunk = {
+  type: SyntagmaChunkType;
+  raw: string;
+  cleanText: string;
+  startIndex: number;
+  endIndex: number;
+  meta?: Record<string, unknown>;
+};
+
 export type ParsedTokens = {
   entities: ParsedEntityToken[];
   contexts: ParsedContextToken[];
@@ -248,6 +259,7 @@ export type ParsedTokens = {
   locations: ParsedLocationToken[];
   actions: ParsedActionToken[];
   conditions: ParsedConditionToken[];
+  chunks: ParsedSyntagmaChunk[];
   cleanText: string;
 };
 

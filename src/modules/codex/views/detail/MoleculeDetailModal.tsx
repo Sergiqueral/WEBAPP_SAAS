@@ -529,8 +529,8 @@ export const MoleculeDetailModal: React.FC<MoleculeDetailModalProps> = ({
                                       ${
                                   isDone
                                     ? `
-                                      border-emerald-600 bg-emerald-600
-                                      text-white
+                                      border-primary bg-primary
+                                      text-primary-foreground
                                     `
                                     : `
                                       border-muted-foreground/40
@@ -771,7 +771,7 @@ export const MoleculeDetailModal: React.FC<MoleculeDetailModalProps> = ({
                                   onClick={handleConfirmDelete}
                                   className="
                                     rounded-sm bg-destructive px-2 py-1 text-xs
-                                    font-semibold text-white
+                                    font-semibold text-destructive-foreground
                                     hover:bg-destructive/90
                                   "
                                 >

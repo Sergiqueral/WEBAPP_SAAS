@@ -39,13 +39,17 @@ export const OrganizationMenu = () => {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="
-          flex items-center gap-2 rounded-lg border border-zinc-800
-          bg-zinc-900/80 px-3 py-1.5 text-xs font-medium text-zinc-200 shadow-sm
-          transition
-          hover:bg-zinc-800
+          flex items-center gap-2 rounded-lg border border-border bg-background
+          px-3 py-1.5 text-xs font-medium text-foreground shadow-xs
+          transition-colors
+          hover:bg-muted hover:text-foreground
         "
       >
-        <Building2 className="size-3.5 text-indigo-400" />
+        <Building2 className="
+          size-3.5 text-indigo-500
+          dark:text-indigo-400
+        "
+        />
         <span className="
           max-w-[120px] truncate
           sm:max-w-[180px]
@@ -53,7 +57,7 @@ export const OrganizationMenu = () => {
         >
           {currentOrgName}
         </span>
-        <ChevronDown className="size-3 text-zinc-400" />
+        <ChevronDown className="size-3 text-muted-foreground" />
       </button>
 
       {isOpen && (
@@ -63,13 +67,13 @@ export const OrganizationMenu = () => {
             onClick={() => setIsOpen(false)}
           />
           <div className="
-            absolute left-0 z-50 mt-2 w-56 rounded-xl border border-zinc-800
-            bg-zinc-900 p-1.5 shadow-xl
+            absolute left-0 z-50 mt-2 w-56 rounded-xl border border-border
+            bg-popover p-1.5 text-popover-foreground shadow-xl
           "
           >
             <div className="
-              px-2 py-1 text-[11px] font-semibold tracking-wider text-zinc-400
-              uppercase
+              px-2 py-1 text-[11px] font-semibold tracking-wider
+              text-muted-foreground uppercase
             "
             >
               Espacio de Trabajo
@@ -87,41 +91,44 @@ export const OrganizationMenu = () => {
                           onClick={() => handleSelectOrg(org.id)}
                           className={`
                             flex w-full items-center justify-between rounded-lg
-                            px-2.5 py-1.5 text-left text-xs transition
+                            px-2.5 py-1.5 text-left text-xs transition-colors
                             ${
                         isActive
-                          ? 'bg-indigo-600/20 font-medium text-indigo-300'
+                          ? 'bg-accent font-semibold text-accent-foreground'
                           : `
-                            text-zinc-300
-                            hover:bg-zinc-800 hover:text-white
+                            text-muted-foreground
+                            hover:bg-muted hover:text-foreground
                           `
                         }
                           `}
                         >
                           <span className="truncate">{org.name}</span>
                           {isActive && (
-                            <Check className="size-3.5 text-indigo-400" />
+                            <Check className="size-3.5 text-primary" />
                           )}
                         </button>
                       );
                     })
                   )
                 : (
-                    <div className="px-2.5 py-1 text-xs text-zinc-500 italic">
+                    <div className="
+                      px-2.5 py-1 text-xs text-muted-foreground italic
+                    "
+                    >
                       {currentOrgName}
                     </div>
                   )}
             </div>
 
-            <div className="my-1 border-t border-zinc-800" />
+            <div className="my-1 border-t border-border" />
 
             <Link
               href={getI18nPath('/dashboard/organization-profile', locale)}
               onClick={() => setIsOpen(false)}
               className="
                 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs
-                text-zinc-400 transition
-                hover:bg-zinc-800 hover:text-zinc-200
+                text-muted-foreground transition-colors
+                hover:bg-muted hover:text-foreground
               "
             >
               <Settings className="size-3.5" />
@@ -133,8 +140,8 @@ export const OrganizationMenu = () => {
               onClick={() => setIsOpen(false)}
               className="
                 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs
-                text-zinc-400 transition
-                hover:bg-zinc-800 hover:text-zinc-200
+                text-muted-foreground transition-colors
+                hover:bg-muted hover:text-foreground
               "
             >
               <Plus className="size-3.5" />

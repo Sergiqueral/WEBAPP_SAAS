@@ -3,14 +3,24 @@ import createMiddleware from 'next-intl/middleware';
 import { NextResponse } from 'next/server';
 import { routing } from './libs/I18nRouting';
 
+import { AllLocales, AppConfig } from './utils/AppConfig';
+
 const handleI18nRouting = createMiddleware(routing);
 
+function extractLocale(pathname: string): string {
+  const match = pathname.match(/^\/([a-z]{2})(?:\/|$)/);
+  if (match && match[1] && AllLocales.includes(match[1])) {
+    return match[1];
+  }
+  return AppConfig.i18n.defaultLocale;
+}
+
 function isProtectedRoute(pathname: string): boolean {
-  return /^\/(?:[a-z]{2}\/)?(?:dashboard|onboarding)/.test(pathname);
+  return /^\/(?:(?:es|en|fr)\/)?(?:dashboard|onboarding)(?:\/|$)/.test(pathname);
 }
 
 function isAuthPage(pathname: string): boolean {
-  return /^\/(?:[a-z]{2}\/)?(?:sign-in|sign-up)/.test(pathname);
+  return /^\/(?:(?:es|en|fr)\/)?(?:sign-in|sign-up)(?:\/|$)/.test(pathname);
 }
 
 export default async function proxy(
@@ -30,8 +40,7 @@ export default async function proxy(
   // Protección de rutas privadas
   if (isProtectedRoute(pathname)) {
     if (!sessionCookie?.value) {
-      const localeMatch = pathname.match(/^\/([a-z]{2})/);
-      const locale = localeMatch ? localeMatch[1] : 'es';
+      const locale = extractLocale(pathname);
       const signInUrl = new URL(`/${locale}/sign-in`, request.url);
       signInUrl.searchParams.set('redirect', pathname);
       return NextResponse.redirect(signInUrl);
@@ -40,8 +49,7 @@ export default async function proxy(
 
   // Si ya tiene sesión activa y visita sign-in/sign-up, redirigir al dashboard
   if (isAuthPage(pathname) && sessionCookie?.value) {
-    const localeMatch = pathname.match(/^\/([a-z]{2})/);
-    const locale = localeMatch ? localeMatch[1] : 'es';
+    const locale = extractLocale(pathname);
     return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url));
   }
 

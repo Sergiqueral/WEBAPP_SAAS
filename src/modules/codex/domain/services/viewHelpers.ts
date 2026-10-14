@@ -78,6 +78,188 @@ export function formatDateKey(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+export type TemporalDimension = {
+  hasDate: boolean;
+  date: Date | null;
+  dateKey: string | null;
+  hasTime: boolean;
+  timeLabel: string | null;
+  isTentative: boolean;
+  isAllDay: boolean;
+  rawExpression?: string | null;
+};
+
+/**
+ * Extractor polimórfico de la dimensión temporal de cualquier átomo o molécula.
+ * En Gorila (Biología del Dato), cualquier átomo que posea una fecha adquiere
+ * estatus temporal y califica para su proyección en el calendario/agenda.
+ */
+export function extractTemporalDimension(molecule: MolecularProjection): TemporalDimension {
+  const payload = (molecule.root.payload ?? {}) as Record<string, unknown>;
+  const metadata = (molecule.root.metadata ?? {}) as Record<string, unknown>;
+
+  // 1. Extraer fecha polimórfica (dueDate, date, eventDate, startDate, due_date)
+  const candidateDateStr = typeof payload.dueDate === 'string' && payload.dueDate
+    ? payload.dueDate
+    : typeof payload.date === 'string' && payload.date
+      ? payload.date
+      : typeof payload.eventDate === 'string' && payload.eventDate
+        ? payload.eventDate
+        : typeof payload.startDate === 'string' && payload.startDate
+          ? payload.startDate
+          : typeof metadata.due_date === 'string' && metadata.due_date
+            ? metadata.due_date
+            : typeof metadata.date === 'string' && metadata.date
+              ? metadata.date
+              : null;
+
+  if (!candidateDateStr) {
+    return {
+      hasDate: false,
+      date: null,
+      dateKey: null,
+      hasTime: false,
+      timeLabel: null,
+      isTentative: false,
+      isAllDay: true,
+      rawExpression: null,
+    };
+  }
+
+  const parsedDate = new Date(candidateDateStr);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return {
+      hasDate: false,
+      date: null,
+      dateKey: null,
+      hasTime: false,
+      timeLabel: null,
+      isTentative: false,
+      isAllDay: true,
+      rawExpression: null,
+    };
+  }
+
+  // 2. Determinar si tiene hora explícita
+  let hasTime = Boolean(metadata.has_time) || Boolean(payload.hasTime);
+  if (!hasTime && candidateDateStr.includes('T')) {
+    const hours = parsedDate.getHours();
+    const minutes = parsedDate.getMinutes();
+    if (hours !== 0 || minutes !== 0) {
+      hasTime = true;
+    }
+  }
+
+  const timeLabel = hasTime
+    ? `${String(parsedDate.getHours()).padStart(2, '0')}:${String(parsedDate.getMinutes()).padStart(2, '0')}`
+    : null;
+
+  const isTentative = Boolean(payload.isTentative)
+    || Boolean(metadata.is_tentative)
+    || (Array.isArray(payload.conditions) && payload.conditions.length > 0);
+
+  const rawExpression = typeof metadata.raw_expression === 'string'
+    ? metadata.raw_expression
+    : typeof payload.rawExpression === 'string'
+      ? payload.rawExpression
+      : null;
+
+  return {
+    hasDate: true,
+    date: parsedDate,
+    dateKey: formatDateKey(parsedDate),
+    hasTime,
+    timeLabel,
+    isTentative,
+    isAllDay: !hasTime,
+    rawExpression,
+  };
+}
+
+export type AgendaGroup = {
+  date: Date;
+  dateKey: string;
+  label: string;
+  isToday: boolean;
+  isPast: boolean;
+  molecules: Array<{
+    molecule: MolecularProjection;
+    temporal: TemporalDimension;
+  }>;
+};
+
+/**
+ * Agrupa moléculas ordenadas cronológicamente para vistas tipo Agenda / Mobile Feed.
+ */
+export function groupMoleculesForAgenda(
+  molecules: MolecularProjection[],
+  options: { referenceDate?: Date } = {},
+): {
+  groups: AgendaGroup[];
+  unscheduled: MolecularProjection[];
+} {
+  const refDate = options.referenceDate ?? new Date();
+  const todayKey = formatDateKey(refDate);
+
+  const groupsMap = new Map<string, Array<{ molecule: MolecularProjection; temporal: TemporalDimension }>>();
+  const unscheduled: MolecularProjection[] = [];
+
+  for (const molecule of molecules) {
+    const temporal = extractTemporalDimension(molecule);
+    if (!temporal.hasDate || !temporal.dateKey || !temporal.date) {
+      unscheduled.push(molecule);
+      continue;
+    }
+
+    const existing = groupsMap.get(temporal.dateKey) ?? [];
+    existing.push({ molecule, temporal });
+    groupsMap.set(temporal.dateKey, existing);
+  }
+
+  const sortedKeys = Array.from(groupsMap.keys()).sort();
+  const groups: AgendaGroup[] = [];
+
+  for (const dateKey of sortedKeys) {
+    const items = groupsMap.get(dateKey)!;
+    items.sort((a, b) => {
+      if (a.temporal.isAllDay && !b.temporal.isAllDay) {
+        return -1;
+      }
+      if (!a.temporal.isAllDay && b.temporal.isAllDay) {
+        return 1;
+      }
+      return (a.temporal.date?.getTime() ?? 0) - (b.temporal.date?.getTime() ?? 0);
+    });
+
+    const [y, m, d] = dateKey.split('-').map(Number);
+    const dateObj = new Date(y!, m! - 1, d!);
+    const isToday = dateKey === todayKey;
+    const isPast = dateKey < todayKey;
+
+    let label = dateObj.toLocaleDateString('es-ES', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    });
+    label = label.charAt(0).toUpperCase() + label.slice(1);
+
+    if (isToday) {
+      label = `Hoy, ${label}`;
+    }
+
+    groups.push({
+      date: dateObj,
+      dateKey,
+      label,
+      isToday,
+      isPast,
+      molecules: items,
+    });
+  }
+
+  return { groups, unscheduled };
+}
+
 export function groupMoleculesByDate(
   molecules: MolecularProjection[],
   year: number,
@@ -88,31 +270,19 @@ export function groupMoleculesByDate(
 } {
   const todayKey = formatDateKey(new Date());
 
-  // Mapear moléculas con dueDate válido a su fecha clave
+  // Mapear moléculas con fecha válida polimórfica a su fecha clave
   const dateMap = new Map<string, MolecularProjection[]>();
   const unscheduled: MolecularProjection[] = [];
 
   for (const molecule of molecules) {
-    const payload = (molecule.root.payload ?? {}) as Record<string, unknown>;
-    const metadata = (molecule.root.metadata ?? {}) as Record<string, unknown>;
-    const dueDateStr = typeof payload.dueDate === 'string'
-      ? payload.dueDate
-      : typeof metadata.due_date === 'string'
-        ? metadata.due_date
-        : null;
+    const temporal = extractTemporalDimension(molecule);
 
-    if (!dueDateStr) {
+    if (!temporal.hasDate || !temporal.dateKey) {
       unscheduled.push(molecule);
       continue;
     }
 
-    const due = new Date(dueDateStr);
-    if (Number.isNaN(due.getTime())) {
-      unscheduled.push(molecule);
-      continue;
-    }
-
-    const key = formatDateKey(due);
+    const key = temporal.dateKey;
     const existing = dateMap.get(key) ?? [];
     existing.push(molecule);
     dateMap.set(key, existing);

@@ -22,7 +22,7 @@ export const buttonVariants = cva(
           `,
         destructive:
           `
-            bg-destructive text-white
+            bg-destructive text-destructive-foreground
             hover:bg-destructive/90
             focus-visible:ring-destructive/20
             dark:bg-destructive/60

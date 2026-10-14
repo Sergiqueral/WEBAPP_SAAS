@@ -42,14 +42,17 @@ export const MolecularFootprint: React.FC<MolecularFootprintProps> = ({
   } = tokens;
 
   // Determinar la naturaleza del átomo central (Arquetipo)
+  const isEvent = actions.some(a => a.action === 'visit') || (tokens.chunks && tokens.chunks.some(c => c.type === 'event'));
   const isOperative = actions.length > 0 || !!temporal;
   const hasContactAnchor = phones.length > 0 || emails.length > 0 || documents.length > 0;
   const hasEntity = entities.length > 0;
   const hasContext = contexts.length > 0;
   const hasLocation = locations.length > 0;
 
-  let atomType: 'task' | 'client' | 'note' | 'inbox' = 'inbox';
-  if (isOperative) {
+  let atomType: 'event' | 'task' | 'client' | 'note' | 'inbox' = 'inbox';
+  if (isEvent) {
+    atomType = 'event';
+  } else if (isOperative) {
     atomType = 'task';
   } else if (hasContactAnchor && hasEntity) {
     atomType = 'client';
@@ -58,6 +61,11 @@ export const MolecularFootprint: React.FC<MolecularFootprintProps> = ({
   }
 
   const atomTypeConfig = {
+    event: {
+      label: 'Evento de Agenda',
+      icon: Calendar,
+      color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20',
+    },
     task: {
       label: 'Tarea Operativa',
       icon: CheckCircle2,
@@ -76,7 +84,7 @@ export const MolecularFootprint: React.FC<MolecularFootprintProps> = ({
     inbox: {
       label: 'Inbox Neutro',
       icon: Inbox,
-      color: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20',
+      color: 'bg-muted text-muted-foreground border-border',
     },
   }[atomType];
 
@@ -132,8 +140,7 @@ export const MolecularFootprint: React.FC<MolecularFootprintProps> = ({
           >
             <User className="size-3" />
             <span>
-              {ent.raw.startsWith('@') ? '' : '@'}
-              {ent.name}
+              {ent.raw.startsWith('@') ? ent.raw : `Cliente: ${ent.name}`}
             </span>
           </span>
         ))}
@@ -150,7 +157,10 @@ export const MolecularFootprint: React.FC<MolecularFootprintProps> = ({
             "
           >
             <Phone className="size-3" />
-            <span>{p.raw}</span>
+            <span>
+              Teléfono:
+              {p.raw}
+            </span>
           </span>
         ))}
 
@@ -221,7 +231,7 @@ export const MolecularFootprint: React.FC<MolecularFootprintProps> = ({
                 ? `GPS: ${loc.normalized}`
                 : loc.type === 'plus_code'
                   ? `PlusCode: ${loc.normalized}`
-                  : loc.normalized}
+                  : `Ubicación: ${loc.normalized}`}
             </span>
           </span>
         ))}
@@ -231,17 +241,18 @@ export const MolecularFootprint: React.FC<MolecularFootprintProps> = ({
           <span
             className="
               inline-flex items-center gap-1 rounded-full border
-              border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 font-medium
-              text-emerald-600 transition-all duration-150
-              dark:text-emerald-400
+              border-indigo-500/25 bg-indigo-500/10 px-2 py-0.5 font-medium
+              text-indigo-600 transition-all duration-150
+              dark:text-indigo-400
             "
           >
             <Calendar className="size-3" />
             <span>
-              {temporal.expression}
+              {isEvent ? 'Evento: ' : 'Fecha: '}
+              {temporal.expression.charAt(0).toUpperCase() + temporal.expression.slice(1)}
               {temporal.hasTime
                 ? ` (${temporal.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`
-                : ''}
+                : isEvent ? ' a las 09:00' : ''}
             </span>
           </span>
         )}

@@ -2,11 +2,13 @@ import type { Atom, MolecularProjection } from '@/modules/codex/domain/types';
 import { describe, expect, it } from 'vitest';
 import {
   aggregateEntityIdentity,
+  extractTemporalDimension,
   formatDateKey,
   getAtomStatus,
   getMonthLabel,
   groupMoleculesByDate,
   groupMoleculesByKanbanStatus,
+  groupMoleculesForAgenda,
   KANBAN_COLUMNS,
 } from '@/modules/codex/domain/services/viewHelpers';
 
@@ -351,6 +353,134 @@ describe('Vistas Multimodales - Helpers de Agrupación y Clasificación (Hito 5.
       const aggregated = aggregateEntityIdentity(anonAtom, []);
 
       expect(aggregated.primaryName).toBe('Contacto +34610932115');
+    });
+  });
+
+  describe('Dimensión Temporal de Átomos y Eventos (extractTemporalDimension)', () => {
+    it('extrae fecha polimórfica desde dueDate, date, eventDate o due_date en metadata', () => {
+      const targetDate = new Date(2026, 9, 22, 10, 30);
+      const molDueDate = createMockMolecule('m-1', 'pending', targetDate.toISOString());
+      const temp1 = extractTemporalDimension(molDueDate);
+
+      expect(temp1.hasDate).toBe(true);
+      expect(temp1.dateKey).toBe(formatDateKey(targetDate));
+      expect(temp1.hasTime).toBe(true);
+      expect(temp1.timeLabel).toBe('10:30');
+      expect(temp1.isAllDay).toBe(false);
+
+      const molDate: MolecularProjection = {
+        root: {
+          id: 'm-2',
+          organizationId: 'org-test',
+          type: 'event',
+          payload: { title: 'Visita técnica', date: '2026-10-25' },
+          metadata: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        outgoing: [],
+        incoming: [],
+        externalIdentities: [],
+      };
+      const temp2 = extractTemporalDimension(molDate);
+
+      expect(temp2.hasDate).toBe(true);
+      expect(temp2.dateKey).toBe('2026-10-25');
+      expect(temp2.isAllDay).toBe(true);
+
+      const molEventDate: MolecularProjection = {
+        root: {
+          id: 'm-3',
+          organizationId: 'org-test',
+          type: 'event',
+          payload: { title: 'Revisión caldera', eventDate: '2026-11-05T16:00:00.000Z' },
+          metadata: { has_time: true },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        outgoing: [],
+        incoming: [],
+        externalIdentities: [],
+      };
+      const temp3 = extractTemporalDimension(molEventDate);
+
+      expect(temp3.hasDate).toBe(true);
+      expect(temp3.dateKey).toBe('2026-11-05');
+      expect(temp3.hasTime).toBe(true);
+
+      const molMetaDate: MolecularProjection = {
+        root: {
+          id: 'm-4',
+          organizationId: 'org-test',
+          type: 'note',
+          payload: { title: 'Nota con vencimiento' },
+          metadata: { due_date: '2026-12-01T00:00:00.000Z' },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        outgoing: [],
+        incoming: [],
+        externalIdentities: [],
+      };
+      const temp4 = extractTemporalDimension(molMetaDate);
+
+      expect(temp4.hasDate).toBe(true);
+      expect(temp4.dateKey).toBe('2026-12-01');
+    });
+
+    it('identifica eventos tentativos o condicionales', () => {
+      const molTentative: MolecularProjection = {
+        root: {
+          id: 'm-tentative',
+          organizationId: 'org-test',
+          type: 'event',
+          payload: {
+            title: 'Posible reunión',
+            dueDate: '2026-10-22T10:00:00.000Z',
+            isTentative: true,
+          },
+          metadata: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        outgoing: [],
+        incoming: [],
+        externalIdentities: [],
+      };
+      const temp = extractTemporalDimension(molTentative);
+
+      expect(temp.hasDate).toBe(true);
+      expect(temp.isTentative).toBe(true);
+    });
+
+    it('gestiona átomos sin fecha con tolerancia sin errores', () => {
+      const molNoDate = createMockMolecule('m-nodate');
+      const temp = extractTemporalDimension(molNoDate);
+
+      expect(temp.hasDate).toBe(false);
+      expect(temp.date).toBeNull();
+      expect(temp.dateKey).toBeNull();
+    });
+  });
+
+  describe('Agrupación Cronológica para Agenda (groupMoleculesForAgenda)', () => {
+    it('agrupa moléculas por día en orden cronológico y separa no programadas', () => {
+      const molecules: MolecularProjection[] = [
+        createMockMolecule('ev-1', 'pending', '2026-10-15T09:00:00.000Z'),
+        createMockMolecule('ev-2', 'pending', '2026-10-15T15:30:00.000Z'),
+        createMockMolecule('ev-3', 'pending', '2026-10-16T11:00:00.000Z'),
+        createMockMolecule('no-date-1'),
+      ];
+
+      const { groups, unscheduled } = groupMoleculesForAgenda(molecules);
+
+      expect(groups).toHaveLength(2);
+      expect(groups[0]?.dateKey).toBe('2026-10-15');
+      expect(groups[0]?.molecules).toHaveLength(2);
+      expect(groups[1]?.dateKey).toBe('2026-10-16');
+      expect(groups[1]?.molecules).toHaveLength(1);
+      expect(unscheduled).toHaveLength(1);
+      expect(unscheduled[0]?.root.id).toBe('no-date-1');
     });
   });
 });

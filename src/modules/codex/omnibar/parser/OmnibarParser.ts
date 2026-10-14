@@ -10,8 +10,10 @@ import type {
   ParsedEntityToken,
   ParsedLocationToken,
   ParsedPhoneToken,
+  ParsedSyntagmaChunk,
   ParsedTemporalToken,
   ParsedTokens,
+  SyntagmaChunkType,
 } from '@/modules/codex/domain/types';
 import * as chrono from 'chrono-node';
 import { IngestIntentSchema } from '@/modules/codex/domain/types';
@@ -39,6 +41,18 @@ const PLUS_CODE_REGEX = /\b([2-9CFGHJMPQRVWXcfghjmpqrvwx]{4,8}\+[2-9CFGHJMPQRVWX
 
 // Regex de Direcciones viales en español
 const ADDRESS_REGEX = /\b(?:c\/|calle|avda\.?|avenida|pza\.?|plaza|paseo|ps\.?|ctra\.?|carretera|pol[íi]gono|travessera|traves[íi]a|rambla|camino|v[íi]a)\s[A-ZÁÉÍÓÚÑ0-9.,\s'-]+?\b(?:\d{1,5}(?:\s*(?:bis|[ºªa-z]))?|nave\s*\d+|km\s*\d+)(?:\s*(?:,\s*)?(?:cp\s*)?\b\d{5}\b)?(?:\s*(?:,\s*)?[a-záéíóúñ]{2,})?(?=\s+(?:el|la|los|para|con|por|de|en|[a#@]|\/\/|$|\.\s)|$)/gi;
+
+// Patrones de Sintagmas y Delimitadores (Token Chunking)
+const CHUNK_DELIMITER_REGEX = /[,;|]|\n+/g;
+const PHONE_PATTERN = /(?:\+|00)\d{1,3}[\s.-]?(?:\(?\d{1,4}\)?[\s.-]?)?(?:\d[\s.-]?){6,12}\d\b|\b[6-9](?:[\s.-]?\d){8}\b/;
+const EMAIL_PATTERN = /(?<!\w)[\w.%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
+const ADDRESS_PREFIX_PATTERN = /^\s*(?:en\s+)?(?:c\/|(?:calle|avda\.?|avenida|pza\.?|plaza|paseo|ps\.?|ctra\.?|carretera|pol[íi]gono|travessera|traves[íi]a|rambla|camino|v[íi]a)\b)/i;
+const ADDRESS_CONTINUATION_PATTERN = /^\s*(?:\d+\s*[ºª]|piso\b|puerta\b|pta\.?\b|escalera\b|esc\.?\b|bajo\b|[aá]tico\b|sobre[aá]tico\b|nave\s*\d+\b|bloque\s*\d+\b|km\s*\d+\b|cp\s*\d{5}\b|\d{5}\b|de\s+[A-ZÁÉÍÓÚÑ]+)/i;
+const EVENT_KEYWORDS_PATTERN = /\b(?:visita|visitar|reuni[óo]n|reunirse|cita|quedar con|encuentro|sesi[óo]n|entrevista)\b/i;
+const TASK_KEYWORDS_PATTERN = /\b(?:llamar|revisar|revisa|inspeccionar|comprobar|verificar|reparar|arreglar|enviar|mandar|presupuestar|facturar|confirmar|comprar|hacer|instalar|tarea)\b/i;
+const CONTACT_PREFIX_PATTERN = /^\s*(?:telf?\.?|tel[ée]fono|m[óo]vil|celular|phone|correo|email|mail|dni|nie|cif|nif)[:\s]*/i;
+const GPS_PATTERN = /(?<![\w/])[-+]?(?:[1-8]?\d\.\d+|90(?:\.0+)?)\s*,\s*[-+]?(?:180(?:\.0+)?|(?:1[0-7]\d|\d{1,2})\.\d+)(?![\w/])/;
+const PLUS_CODE_PATTERN = /\b[2-9CFGHJMPQRVWX]{4,8}\+[2-9CFGHJMPQRVWX]{2,3}(?:\s+[A-ZÁÉÍÓÚÑ]+)*\b/i;
 
 const DNI_LETTERS = 'TRWAGMYFPDXBNJZSQVHLCKE';
 
@@ -259,6 +273,49 @@ const STOPWORDS = new Set([
   'cita',
   'obra',
   'casa',
+  // Prefijos y componentes viales (Regla 3: Exclusión de viales como persona)
+  'calle',
+  'c/',
+  'avda',
+  'avenida',
+  'paseo',
+  'ps',
+  'plaza',
+  'pza',
+  'carretera',
+  'ctra',
+  'poligono',
+  'polígono',
+  'rambla',
+  'camino',
+  'via',
+  'vía',
+  'travessera',
+  'travesia',
+  'travesía',
+  'edificio',
+  'bloque',
+  'nave',
+  'piso',
+  'puerta',
+  'escalera',
+  'portal',
+  // Sustantivos documentales u operativos
+  'factura',
+  'presupuesto',
+  'albaran',
+  'albarán',
+  'pedido',
+  'informe',
+  'recibo',
+  'cliente',
+  'proveedor',
+  'empresa',
+  'proyecto',
+  'encuentro',
+  'sesion',
+  'sesión',
+  'entrevista',
 ]);
 
 function normalizePhoneNumber(raw: string): string {
@@ -273,6 +330,160 @@ export class OmnibarParser {
   static validateSpanishDocument = validateSpanishDocument;
 
   /**
+   * Segmenta el input en sintagmas (chunks) delimitados por comas, puntos y comas o saltos de línea,
+   * absorbe sufijos y modificadores de dirección contiguos y clasifica semánticamente cada bloque.
+   */
+  static extractSyntagmaChunks(
+    text: string,
+    options: ParserOptions = {},
+  ): ParsedSyntagmaChunk[] {
+    const rawText = text ?? '';
+    if (rawText.trim().length === 0) {
+      return [];
+    }
+
+    // 1. Delimitar segmentos brutos preservando índices de inicio y fin
+    const segments: Array<{ raw: string; startIndex: number; endIndex: number }> = [];
+    let lastIndex = 0;
+    const delimRegex = new RegExp(CHUNK_DELIMITER_REGEX.source, 'g');
+    let match = delimRegex.exec(rawText);
+    while (match !== null) {
+      const rawSegment = rawText.slice(lastIndex, match.index);
+      if (rawSegment.trim().length > 0) {
+        const leadingSpaces = rawSegment.length - rawSegment.trimStart().length;
+        const trailingSpaces = rawSegment.length - rawSegment.trimEnd().length;
+        segments.push({
+          raw: rawSegment.trim(),
+          startIndex: lastIndex + leadingSpaces,
+          endIndex: match.index - trailingSpaces,
+        });
+      }
+      lastIndex = delimRegex.lastIndex;
+      match = delimRegex.exec(rawText);
+    }
+
+    if (lastIndex < rawText.length) {
+      const rawSegment = rawText.slice(lastIndex);
+      if (rawSegment.trim().length > 0) {
+        const leadingSpaces = rawSegment.length - rawSegment.trimStart().length;
+        const trailingSpaces = rawSegment.length - rawSegment.trimEnd().length;
+        segments.push({
+          raw: rawSegment.trim(),
+          startIndex: lastIndex + leadingSpaces,
+          endIndex: rawText.length - trailingSpaces,
+        });
+      }
+    }
+
+    if (segments.length === 0) {
+      return [];
+    }
+
+    // 2. Absorción de complementos de dirección (ej: "calle Camarles 23" + "1º 2ª de Tarragona")
+    const mergedSegments: Array<{ raw: string; startIndex: number; endIndex: number }> = [];
+
+    for (let i = 0; i < segments.length; i++) {
+      const curr = segments[i]!;
+
+      if (ADDRESS_PREFIX_PATTERN.test(curr.raw)) {
+        let combinedRaw = curr.raw;
+        let combinedEndIndex = curr.endIndex;
+
+        while (i + 1 < segments.length) {
+          const next = segments[i + 1]!;
+          const isNextContact
+            = CONTACT_PREFIX_PATTERN.test(next.raw) || PHONE_PATTERN.test(next.raw);
+          const isNextEvent = EVENT_KEYWORDS_PATTERN.test(next.raw);
+          const isNextAt = next.raw.startsWith('@');
+
+          if (
+            !isNextContact
+            && !isNextEvent
+            && !isNextAt
+            && ADDRESS_CONTINUATION_PATTERN.test(next.raw)
+          ) {
+            combinedRaw = `${combinedRaw}, ${next.raw}`;
+            combinedEndIndex = next.endIndex;
+            i++;
+          } else {
+            break;
+          }
+        }
+
+        mergedSegments.push({
+          raw: combinedRaw,
+          startIndex: curr.startIndex,
+          endIndex: combinedEndIndex,
+        });
+      } else {
+        mergedSegments.push(curr);
+      }
+    }
+
+    // 3. Clasificación de cada sintagma
+    const chunks: ParsedSyntagmaChunk[] = [];
+    const knownEntities = options.knownEntities ?? [];
+
+    for (const seg of mergedSegments) {
+      const trimmed = seg.raw.trim();
+      let type: SyntagmaChunkType = 'general';
+      let clean = trimmed;
+
+      const hasPhone = PHONE_PATTERN.test(trimmed);
+      const hasEmail = EMAIL_PATTERN.test(trimmed);
+      const hasDoc = validateSpanishDocument(trimmed) !== null;
+      const hasContactPrefix = CONTACT_PREFIX_PATTERN.test(trimmed);
+
+      // A) CONTACTO: Teléfono, email, documento o prefijo explícito de contacto
+      if (hasPhone || hasEmail || hasDoc || hasContactPrefix) {
+        type = 'contact';
+        clean = trimmed.replace(CONTACT_PREFIX_PATTERN, '').trim();
+      } else if (
+        ADDRESS_PREFIX_PATTERN.test(trimmed)
+        || GPS_PATTERN.test(trimmed)
+        || PLUS_CODE_PATTERN.test(trimmed)
+      ) {
+        // B) DIRECCIÓN: Prefijo vial, coordenadas o Plus Codes
+        type = 'address';
+        clean = trimmed.replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim();
+      } else if (EVENT_KEYWORDS_PATTERN.test(trimmed)) {
+        // C) EVENTO: Verbos de visita, reunión, cita, etc.
+        type = 'event';
+        clean = trimmed;
+      } else if (TASK_KEYWORDS_PATTERN.test(trimmed)) {
+        // D) TAREA: Verbos de acción operativa pero no de reunión
+        type = 'task';
+        clean = trimmed;
+      } else if (
+        trimmed.startsWith('@')
+        || knownEntities.some(k => k.name.toLowerCase() === trimmed.toLowerCase())
+        || /^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)+$/.test(trimmed)
+        || (/^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+$/.test(trimmed) && (seg.startIndex === 0 || segments.length > 1))
+        || /^(?:[Cc]on|[Aa]|[Pp]ara|[Dd]e)\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*$/.test(trimmed)
+      ) {
+        // E) ENTIDAD: Nombres propios con @, Mayúsculas compuestas, o posición inicial / preposición
+        const stripped = trimmed.replace(/^@/, '').replace(/^(?:con|a|para|de)\s+/i, '').trim();
+        const words = stripped.toLowerCase().split(/\s+/);
+        const containsStopword = words.some(w => STOPWORDS.has(w));
+        if (!containsStopword && words.length > 0) {
+          type = 'entity';
+          clean = stripped;
+        }
+      }
+
+      chunks.push({
+        type,
+        raw: trimmed,
+        cleanText: clean,
+        startIndex: seg.startIndex,
+        endIndex: seg.endIndex,
+      });
+    }
+
+    return chunks;
+  }
+
+  /**
    * Extrae anclajes (teléfonos, correos, verbos, condiciones), tokens (@entidad, //fecha, #contexto)
    * y texto limpio del input del usuario.
    */
@@ -280,6 +491,8 @@ export class OmnibarParser {
     const rawText = text ?? '';
     const knownEntities = options.knownEntities ?? [];
     const refDate = options.referenceDate ?? new Date();
+
+    const chunks = this.extractSyntagmaChunks(rawText, options);
 
     const entities: ParsedEntityToken[] = [];
     const contexts: ParsedContextToken[] = [];
@@ -417,7 +630,21 @@ export class OmnibarParser {
       }
     }
 
-    // 6. EXTRAER DIRECCIONES VIALES EN ESPAÑOL
+    // 6a. EXTRAER DIRECCIONES DESDE SINTAGMAS ABSORBIDOS (CHUNKS)
+    for (const chunk of chunks) {
+      if (chunk.type === 'address' && !isOccupied(chunk.startIndex, chunk.endIndex)) {
+        locations.push({
+          raw: chunk.raw,
+          type: 'address',
+          normalized: chunk.cleanText,
+          startIndex: chunk.startIndex,
+          endIndex: chunk.endIndex,
+        });
+        occupiedRanges.push({ start: chunk.startIndex, end: chunk.endIndex });
+      }
+    }
+
+    // 6b. EXTRAER DIRECCIONES VIALES EN ESPAÑOL (Fallback Regex)
     const addressMatches = Array.from(rawText.matchAll(ADDRESS_REGEX));
     for (const match of addressMatches) {
       if (match.index === undefined) {
@@ -603,13 +830,37 @@ export class OmnibarParser {
             dateStartIndex -= prepMatch[0].length;
           }
 
-          const dateEndIndex = firstResult.index + firstResult.text.length;
+          let dateEndIndex = firstResult.index + firstResult.text.length;
+          // Absorber sufijos temporales en español (ej. "de la semana que viene", "que viene", "por la tarde", etc.)
+          const textAfter = rawText.slice(dateEndIndex);
+          const suffixMatch = textAfter.match(
+            /^\s+(?:de\s+la\s+semana\s+que\s+viene|de\s+la\s+próxima\s+semana|de\s+la\s+proxima\s+semana|que\s+viene|próximo|proximo|del\s+mes\s+que\s+viene|por\s+la\s+mañana|por\s+la\s+tarde|por\s+la\s+noche)\b/i,
+          );
+          if (suffixMatch) {
+            dateEndIndex += suffixMatch[0].length;
+          }
+
+          let finalDate = firstResult.date();
+          if (
+            suffixMatch
+            && /semana\s+que\s+viene|próxima\s+semana|proxima\s+semana/i.test(suffixMatch[0])
+          ) {
+            // Si la fecha original calculada cae dentro de la semana en curso (menos de 7 días), sumar 7 días
+            const diffDays = Math.round(
+              (finalDate.getTime() - refDate.getTime()) / (1000 * 60 * 60 * 24),
+            );
+            if (diffDays <= 7) {
+              finalDate = new Date(finalDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+            }
+          }
+
           const exactRaw = rawText.slice(dateStartIndex, dateEndIndex);
+          const exactExpr = rawText.slice(firstResult.index, dateEndIndex).trim();
 
           temporal = {
             raw: exactRaw,
-            expression: firstResult.text,
-            date: firstResult.date(),
+            expression: exactExpr,
+            date: finalDate,
             hasTime: firstResult.start.isCertain('hour'),
             startIndex: dateStartIndex,
             endIndex: dateEndIndex,
@@ -690,7 +941,38 @@ export class OmnibarParser {
       }
     }
 
-    // B) Nombres propios compuestos por 2 o más palabras en mayúscula (ej. Jose Martines, Juan Carrasco)
+    // B1) Regla 2 (Posicional / Preposicional): Nombres precedidos por preposiciones de interacción ("con", "a", "para", "de")
+    // Permite detectar nombres simples (ej. "con Carlos", "a Pedro", "para Maria") o compuestos
+    const prepEntityRegex = /\b(?:[Cc]on|[Aa]|[Pp]ara|[Dd]e)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*)\b/g;
+    const prepMatches = Array.from(rawText.matchAll(prepEntityRegex));
+    for (const pm of prepMatches) {
+      if (pm.index === undefined || !pm[1]) {
+        continue;
+      }
+      const matchedName = pm[1].trim();
+      const prepOffset = pm[0].indexOf(matchedName);
+      const startIndex = pm.index + prepOffset;
+      const endIndex = startIndex + matchedName.length;
+
+      const words = matchedName.toLowerCase().split(/\s+/);
+      const containsStopword = words.some(w => STOPWORDS.has(w));
+
+      const alreadyAdded = entities.some(
+        e => Math.max(startIndex, e.startIndex) < Math.min(endIndex, e.endIndex),
+      );
+
+      if (!containsStopword && !alreadyAdded && !isOccupied(startIndex, endIndex)) {
+        entities.push({
+          raw: matchedName,
+          name: matchedName,
+          startIndex,
+          endIndex,
+        });
+        occupiedRanges.push({ start: startIndex, end: endIndex });
+      }
+    }
+
+    // B2) Regla 1 (Gramatical): Nombres propios compuestos por 2 o más palabras en mayúscula (ej. Jose Martines, Juan Carrasco)
     const properNameRegex = /\b[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)+\b/g;
     const nameMatches = Array.from(rawText.matchAll(properNameRegex));
     for (const nm of nameMatches) {
@@ -718,6 +1000,24 @@ export class OmnibarParser {
       }
     }
 
+    // C) Entidades detectadas desde sintagmas
+    for (const chunk of chunks) {
+      if (chunk.type === 'entity' && !isOccupied(chunk.startIndex, chunk.endIndex)) {
+        const alreadyAdded = entities.some(
+          e => Math.max(chunk.startIndex, e.startIndex) < Math.min(chunk.endIndex, e.endIndex),
+        );
+        if (!alreadyAdded) {
+          entities.push({
+            raw: chunk.raw,
+            name: chunk.cleanText,
+            startIndex: chunk.startIndex,
+            endIndex: chunk.endIndex,
+          });
+          occupiedRanges.push({ start: chunk.startIndex, end: chunk.endIndex });
+        }
+      }
+    }
+
     // 10. GENERAR TEXTO LIMPIO (Removiendo rangos sintácticos explícitos)
     const sortedRanges = [...rangesToRemove].sort((a, b) => b.start - a.start);
     let cleanText = rawText;
@@ -738,6 +1038,7 @@ export class OmnibarParser {
       locations,
       actions,
       conditions,
+      chunks,
       cleanText,
     };
   }
@@ -758,16 +1059,56 @@ export class OmnibarParser {
         || tokens.documents.some(d => d.isValid);
     const hasEntity = tokens.entities.length > 0;
     const hasContext = tokens.contexts.length > 0;
+    const hasEventChunk = tokens.chunks.some(c => c.type === 'event');
+    const isMultiClause = tokens.chunks.length > 1;
 
     // Regla Biológica de Arquetipos de Átomo:
-    // 1. Si hay acción operativa o temporal -> 'task'
-    // 2. Si hay entidad + anclaje de contacto (tel/email/documento) sin acción ni fecha -> 'client' (Ficha emergente)
-    // 3. Si hay entidad o contexto sin acción -> 'note'
-    // 4. Si no hay anclajes -> 'inbox'
+    // 1. Si hay sintagma de evento con contexto/cliente delimitado -> 'event'
+    // 2. Si hay acción operativa o temporal -> 'task'
+    // 3. Si hay entidad + anclaje de contacto (tel/email/documento) sin acción ni fecha -> 'client' (Ficha emergente)
+    // 4. Si hay entidad o contexto sin acción -> 'note'
+    // 5. Si no hay anclajes -> 'inbox'
     let coreType = 'inbox';
     let title = tokens.cleanText.length > 0 ? tokens.cleanText : text.trim();
 
-    if (isOperative) {
+    if (
+      hasEventChunk
+      && (isMultiClause || hasContactAnchor || hasEntity || tokens.locations.length > 0)
+    ) {
+      coreType = 'event';
+      const eventChunk = tokens.chunks.find(c => c.type === 'event')!;
+      let eventTitle = eventChunk.cleanText;
+
+      // Si el evento contiene la expresión temporal, removerla del título para dejar el propósito limpio
+      if (
+        tokens.temporal
+        && tokens.temporal.startIndex >= eventChunk.startIndex
+        && tokens.temporal.endIndex <= eventChunk.endIndex
+      ) {
+        const relStart = tokens.temporal.startIndex - eventChunk.startIndex;
+        const relEnd = tokens.temporal.endIndex - eventChunk.startIndex;
+        eventTitle = eventChunk.raw.slice(0, relStart) + eventChunk.raw.slice(relEnd);
+      } else if (
+        tokens.temporal
+        && eventChunk.raw.toLowerCase().includes(tokens.temporal.expression.toLowerCase())
+      ) {
+        const escaped = tokens.temporal.expression.replace(
+          /[.*+?^${}()|[\]\\]/g,
+          '\\$&',
+        );
+        eventTitle = eventTitle.replace(
+          new RegExp(`\\b(?:el\\s+)?${escaped}\\b`, 'i'),
+          '',
+        );
+      }
+      // Limpiar preposiciones residuales al final ("para", "el", "a las", etc.) y espacios
+      eventTitle = eventTitle.replace(/\s+(?:el|para|a\s+las?|en|de)\s*$/i, '').trim();
+      eventTitle = eventTitle.replace(/\s+/g, ' ').trim();
+      if (eventTitle.length > 0) {
+        eventTitle = eventTitle.charAt(0).toUpperCase() + eventTitle.slice(1);
+      }
+      title = eventTitle || title;
+    } else if (isOperative) {
       coreType = 'task';
     } else if (hasContactAnchor && hasEntity) {
       coreType = 'client';
@@ -868,6 +1209,7 @@ export class OmnibarParser {
         title,
         payload: {
           raw: text,
+          chunks: tokens.chunks,
           phones: tokens.phones.map(p => p.number),
           emails: tokens.emails.map(e => e.email),
           documents: tokens.documents.filter(d => d.isValid).map(d => d.documentNumber),
