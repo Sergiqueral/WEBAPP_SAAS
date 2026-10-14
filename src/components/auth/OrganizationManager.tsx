@@ -65,7 +65,7 @@ export const OrganizationManager: React.FC<{ locale: string }> = ({ locale }) =>
 
   if (!session) {
     return (
-      <div className="p-8 text-center text-zinc-400">
+      <div className="p-8 text-center text-muted-foreground">
         Inicie sesión para gestionar sus organizaciones.
       </div>
     );
@@ -73,27 +73,32 @@ export const OrganizationManager: React.FC<{ locale: string }> = ({ locale }) =>
 
   return (
     <div className="
-      w-full max-w-xl rounded-2xl border border-zinc-800 bg-zinc-950/80 p-8
-      shadow-2xl backdrop-blur-xl
+      w-full max-w-xl rounded-2xl border border-border bg-card p-8
+      text-card-foreground shadow-xl
     "
     >
       <div className="mb-6">
         <h2 className="
-          flex items-center gap-2.5 text-2xl font-bold tracking-tight text-white
+          flex items-center gap-2.5 text-2xl font-bold tracking-tight
+          text-foreground
         "
         >
-          <Building2 className="size-6 text-indigo-400" />
+          <Building2 className="
+            size-6 text-indigo-600
+            dark:text-indigo-400
+          "
+          />
           <span>Tus Organizaciones y Equipos</span>
         </h2>
-        <p className="mt-1 text-sm text-zinc-400">
+        <p className="mt-1 text-sm text-muted-foreground">
           Selecciona una organización existente o crea un nuevo espacio de trabajo.
         </p>
       </div>
 
       {error && (
         <div className="
-          mb-5 rounded-lg border border-red-500/30 bg-red-950/40 p-3 text-sm
-          text-red-300
+          mb-5 rounded-lg border border-destructive/30 bg-destructive/10 p-3
+          text-sm text-destructive
         "
         >
           {error}
@@ -103,7 +108,7 @@ export const OrganizationManager: React.FC<{ locale: string }> = ({ locale }) =>
       {/* Lista de Organizaciones */}
       <div className="mb-8 space-y-2">
         <label className="
-          mb-2 block text-xs font-semibold tracking-wider text-zinc-400
+          mb-2 block text-xs font-semibold tracking-wider text-muted-foreground
           uppercase
         "
         >
@@ -112,10 +117,14 @@ export const OrganizationManager: React.FC<{ locale: string }> = ({ locale }) =>
         {isPending
           ? (
               <div className="
-                flex items-center gap-2 py-4 text-sm text-zinc-400
+                flex items-center gap-2 py-4 text-sm text-muted-foreground
               "
               >
-                <Loader2 className="size-4 animate-spin text-indigo-400" />
+                <Loader2 className="
+                  size-4 animate-spin text-indigo-600
+                  dark:text-indigo-400
+                "
+                />
                 <span>Cargando equipos...</span>
               </div>
             )
@@ -131,10 +140,10 @@ export const OrganizationManager: React.FC<{ locale: string }> = ({ locale }) =>
                         transition
                         ${
                     isActive
-                      ? 'border-indigo-500/60 bg-indigo-950/20'
+                      ? 'border-primary/50 bg-primary/5'
                       : `
-                        border-zinc-800 bg-zinc-900/40
-                        hover:border-zinc-700
+                        border-border bg-muted/20
+                        hover:border-muted-foreground/30
                       `
                     }
                       `}
@@ -142,14 +151,15 @@ export const OrganizationManager: React.FC<{ locale: string }> = ({ locale }) =>
                       <div className="flex items-center gap-3">
                         <div className="
                           flex size-10 items-center justify-center rounded-lg
-                          bg-zinc-800 text-indigo-400
+                          bg-muted text-indigo-600
+                          dark:text-indigo-400
                         "
                         >
                           <Users className="size-5" />
                         </div>
                         <div>
-                          <h4 className="text-sm font-semibold text-white">{org.name}</h4>
-                          <p className="text-xs text-zinc-500">
+                          <h4 className="text-sm font-semibold text-foreground">{org.name}</h4>
+                          <p className="text-xs text-muted-foreground">
                             ID:
                             {org.id}
                           </p>
@@ -160,8 +170,9 @@ export const OrganizationManager: React.FC<{ locale: string }> = ({ locale }) =>
                         ? (
                             <span className="
                               flex items-center gap-1.5 rounded-full border
-                              border-emerald-500/20 bg-emerald-500/10 px-3 py-1
-                              text-xs font-medium text-emerald-400
+                              border-emerald-500/30 bg-emerald-500/10 px-3 py-1
+                              text-xs font-medium text-emerald-700
+                              dark:text-emerald-400
                             "
                             >
                               <Check className="size-3.5" />
@@ -173,9 +184,10 @@ export const OrganizationManager: React.FC<{ locale: string }> = ({ locale }) =>
                               type="button"
                               onClick={() => handleSelectOrg(org.id)}
                               className="
-                                rounded-lg bg-zinc-800 px-3 py-1.5 text-xs
-                                font-medium text-zinc-200 transition
-                                hover:bg-zinc-700 hover:text-white
+                                rounded-lg border border-border bg-secondary
+                                px-3 py-1.5 text-xs font-medium
+                                text-secondary-foreground transition-colors
+                                hover:bg-secondary/80
                               "
                             >
                               Seleccionar
@@ -187,8 +199,8 @@ export const OrganizationManager: React.FC<{ locale: string }> = ({ locale }) =>
               )
             : (
                 <div className="
-                  rounded-xl border border-dashed border-zinc-800 p-6
-                  text-center text-sm text-zinc-500
+                  rounded-xl border border-dashed border-border p-6 text-center
+                  text-sm text-muted-foreground
                 "
                 >
                   Aún no perteneces a ninguna organización formal. Puedes crear la primera a continuación.
@@ -199,10 +211,10 @@ export const OrganizationManager: React.FC<{ locale: string }> = ({ locale }) =>
       {/* Formulario Crear Organización */}
       <form
         onSubmit={handleCreateOrg}
-        className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5"
+        className="rounded-xl border border-border bg-muted/30 p-5"
       >
         <label className="
-          mb-2 block text-xs font-semibold tracking-wider text-zinc-300
+          mb-2 block text-xs font-semibold tracking-wider text-muted-foreground
           uppercase
         "
         >
@@ -216,20 +228,19 @@ export const OrganizationManager: React.FC<{ locale: string }> = ({ locale }) =>
             onChange={e => setNewOrgName(e.target.value)}
             placeholder="Ej: SERVEIX Digital, Mi Empresa..."
             className="
-              flex-1 rounded-xl border border-zinc-800 bg-zinc-900 px-3.5 py-2.5
-              text-sm text-white placeholder-zinc-500
-              focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500
-              focus:outline-none
+              flex-1 rounded-xl border border-input bg-background px-3.5 py-2.5
+              text-sm text-foreground
+              placeholder:text-muted-foreground
+              focus:border-ring focus:ring-1 focus:ring-ring focus:outline-none
             "
           />
           <button
             type="submit"
             disabled={isCreating || !newOrgName.trim()}
             className="
-              flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5
-              text-sm font-semibold text-white shadow-md shadow-indigo-600/30
-              transition
-              hover:bg-indigo-500
+              flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm
+              font-semibold text-primary-foreground shadow-xs transition
+              hover:bg-primary/90
               disabled:opacity-50
             "
           >

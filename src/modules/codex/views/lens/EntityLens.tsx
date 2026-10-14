@@ -780,8 +780,8 @@ export const EntityLens: React.FC<EntityLensProps> = ({
                                         ${
                                     isDone
                                       ? `
-                                        border-emerald-500 bg-emerald-500
-                                        text-white
+                                        border-primary bg-primary
+                                        text-primary-foreground
                                       `
                                       : `
                                         border-muted-foreground/40 bg-background
@@ -904,7 +904,10 @@ export const EntityLens: React.FC<EntityLensProps> = ({
                                       flex size-5 items-center justify-center
                                       rounded-md border
                                       ${isDone
-                                ? `border-emerald-500 bg-emerald-500 text-white`
+                                ? `
+                                  border-primary bg-primary
+                                  text-primary-foreground
+                                `
                                 : `border-muted-foreground/40 bg-background`}
                                     `}
                                   >

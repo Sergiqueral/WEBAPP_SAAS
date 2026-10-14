@@ -68,7 +68,7 @@ export const MobileFloatingActionButton: React.FC<MobileFloatingActionButtonProp
         aria-hidden="true"
         className="
           absolute -top-0.5 -right-0.5 flex size-5 items-center justify-center
-          rounded-full border-2 border-background bg-amber-400 text-stone-900
+          rounded-full border-2 border-background bg-amber-400 text-foreground
           shadow-2xs
         "
       >

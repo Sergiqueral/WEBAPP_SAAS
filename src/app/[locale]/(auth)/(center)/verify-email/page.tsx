@@ -20,7 +20,7 @@ export default async function VerifyEmailPage(props: VerifyEmailPageProps) {
 
   return (
     <div className="flex w-full justify-center">
-      <Suspense fallback={<div className="text-zinc-500">Cargando...</div>}>
+      <Suspense fallback={<div className="text-muted-foreground">Cargando...</div>}>
         <VerifyEmailCard locale={locale} />
       </Suspense>
     </div>

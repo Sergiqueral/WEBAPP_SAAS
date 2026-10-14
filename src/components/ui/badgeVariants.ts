@@ -26,7 +26,7 @@ export const badgeVariants = cva(
           `,
         destructive:
           `
-            border-transparent bg-destructive text-white
+            border-transparent bg-destructive text-destructive-foreground
             focus-visible:ring-destructive/20
             dark:bg-destructive/60
             dark:focus-visible:ring-destructive/40

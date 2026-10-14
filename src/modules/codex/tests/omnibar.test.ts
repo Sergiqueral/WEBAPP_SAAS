@@ -1105,5 +1105,34 @@ describe('Omnibarra Mecánica: OmnibarParser', () => {
       createSynapseSpy.mockRestore();
       getMoleculeSpy.mockRestore();
     });
+
+    it('Feedback en Vivo: extrae en tiempo real Cliente, Teléfono, Ubicación y Evento para los chips de la Omnibarra', () => {
+      const input = 'Carlos Garcia, telf 654887744, calle Camarles 23 Tarragona, visita miércoles';
+      const tokens = OmnibarParser.extractTokens(input, { referenceDate });
+
+      // 1. Cliente Heurístico (Carlos Garcia)
+      expect(tokens.entities.length).toBeGreaterThanOrEqual(1);
+      expect(tokens.entities[0]?.name).toBe('Carlos Garcia');
+
+      // 2. Teléfono Heurístico (654887744)
+      expect(tokens.phones).toHaveLength(1);
+      expect(tokens.phones[0]?.number).toBe('654887744');
+
+      // 3. Ubicación Heurística (calle Camarles 23 Tarragona)
+      expect(tokens.locations.length).toBeGreaterThanOrEqual(1);
+      expect(tokens.locations[0]?.normalized.toLowerCase()).toContain('calle camarles 23');
+
+      // 4. Expresión Temporal / Evento (miércoles)
+      expect(tokens.temporal).toBeDefined();
+      expect(tokens.temporal?.expression.toLowerCase()).toContain('miércoles');
+
+      // 5. Chunking Semántico (event, address, contact, entity)
+      const chunkTypes = tokens.chunks.map(c => c.type);
+
+      expect(chunkTypes).toContain('entity');
+      expect(chunkTypes).toContain('contact');
+      expect(chunkTypes).toContain('address');
+      expect(chunkTypes).toContain('event');
+    });
   });
 });

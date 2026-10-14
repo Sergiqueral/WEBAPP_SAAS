@@ -5,13 +5,16 @@ import {
   Calendar,
   CheckCircle2,
   CornerDownLeft,
+  CreditCard,
   Hash,
   Loader2,
+  MapPin,
   Maximize2,
+  Phone,
   Sparkles,
   User,
 } from 'lucide-react';
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useOmnibar } from '../hooks/useOmnibar';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 
@@ -115,10 +118,32 @@ export const InlineOmnibar: React.FC<InlineOmnibarProps> = ({
   };
 
   const isTask = omnibar.rawText.trimStart().startsWith('//');
+  const isEvent = useMemo(() => {
+    return (
+      omnibar.parsedTokens.chunks.some(c => c.type === 'event')
+      || omnibar.parsedTokens.actions.some(a => a.action === 'visit')
+    );
+  }, [omnibar.parsedTokens.chunks, omnibar.parsedTokens.actions]);
+
+  const eventTimeLabel = useMemo(() => {
+    if (!omnibar.parsedTokens.temporal) {
+      return null;
+    }
+    const { expression, hasTime } = omnibar.parsedTokens.temporal;
+    const capitalized = expression.charAt(0).toUpperCase() + expression.slice(1);
+    if (isEvent && !hasTime) {
+      return `${capitalized} a las 09:00`;
+    }
+    return capitalized;
+  }, [omnibar.parsedTokens.temporal, isEvent]);
+
   const hasTokens
     = isTask
       || omnibar.parsedTokens.entities.length > 0
       || omnibar.parsedTokens.contexts.length > 0
+      || omnibar.parsedTokens.phones.length > 0
+      || omnibar.parsedTokens.locations.length > 0
+      || omnibar.parsedTokens.documents.length > 0
       || !!omnibar.parsedTokens.temporal;
 
   return (
@@ -307,10 +332,70 @@ export const InlineOmnibar: React.FC<InlineOmnibarProps> = ({
               "
             >
               <User className="size-2.5" />
-              @
-              {e.name}
+              {e.raw.startsWith('@') ? `@${e.name}` : `Cliente: ${e.name}`}
             </span>
           ))}
+
+          {omnibar.parsedTokens.phones.map(p => (
+            <span
+              key={p.number}
+              className="
+                inline-flex items-center gap-1 rounded-md bg-emerald-500/10
+                px-1.5 py-0.5 text-[10px] font-medium text-emerald-600
+                dark:text-emerald-400
+              "
+            >
+              <Phone className="size-2.5" />
+              Teléfono:
+              {' '}
+              {p.raw || p.number}
+            </span>
+          ))}
+
+          {omnibar.parsedTokens.locations.map(loc => (
+            <span
+              key={`loc-${loc.startIndex}-${loc.raw}`}
+              className="
+                inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-1.5
+                py-0.5 text-[10px] font-medium text-amber-600
+                dark:text-amber-400
+              "
+            >
+              <MapPin className="size-2.5" />
+              Ubicación:
+              {' '}
+              {loc.normalized || loc.raw}
+            </span>
+          ))}
+
+          {omnibar.parsedTokens.documents.map(d => (
+            <span
+              key={d.documentNumber}
+              className="
+                inline-flex items-center gap-1 rounded-md bg-rose-500/10 px-1.5
+                py-0.5 text-[10px] font-medium text-rose-600
+                dark:text-rose-400
+              "
+            >
+              <CreditCard className="size-2.5" />
+              {d.type.toUpperCase()}
+              :
+              {d.documentNumber}
+            </span>
+          ))}
+
+          {omnibar.parsedTokens.temporal && (
+            <span
+              className="
+                inline-flex items-center gap-1 rounded-md bg-indigo-500/10
+                px-1.5 py-0.5 text-[10px] font-medium text-indigo-600
+                dark:text-indigo-400
+              "
+            >
+              <Calendar className="size-2.5" />
+              {isEvent ? `Evento: ${eventTimeLabel}` : `Fecha: ${eventTimeLabel}`}
+            </span>
+          )}
 
           {omnibar.parsedTokens.contexts.map(c => (
             <span
@@ -326,18 +411,6 @@ export const InlineOmnibar: React.FC<InlineOmnibarProps> = ({
               {c.name}
             </span>
           ))}
-
-          {omnibar.parsedTokens.temporal && (
-            <span className="
-              inline-flex items-center gap-1 rounded-md bg-indigo-500/10 px-1.5
-              py-0.5 text-[10px] font-medium text-indigo-600
-              dark:text-indigo-400
-            "
-            >
-              <Calendar className="size-2.5" />
-              {omnibar.parsedTokens.temporal.expression}
-            </span>
-          )}
         </div>
       )}
 

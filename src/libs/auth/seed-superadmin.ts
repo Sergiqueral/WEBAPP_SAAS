@@ -5,7 +5,6 @@ import { db } from '../DB';
 import { auth } from './auth';
 import { member, organization, user } from './schema';
 
-
 export async function seedSuperadmin(provisionalPassword = 'Gorila_Superadmin_2026!') {
   const superadminEmail = 'squeral@serveix.me';
   const superadminName = 'Sergio Queral';

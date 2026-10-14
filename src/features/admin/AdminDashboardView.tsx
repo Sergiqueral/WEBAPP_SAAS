@@ -721,7 +721,7 @@ export const AdminDashboardView: React.FC = () => {
                 className={`
                   rounded-lg px-3 py-1.5 text-xs font-medium transition-colors
                   ${userFilter === 'verified'
-          ? 'bg-emerald-600 text-white'
+          ? 'bg-primary text-primary-foreground'
           : `
             border border-border bg-background text-muted-foreground
             hover:bg-muted
@@ -736,7 +736,7 @@ export const AdminDashboardView: React.FC = () => {
                 className={`
                   rounded-lg px-3 py-1.5 text-xs font-medium transition-colors
                   ${userFilter === 'unverified'
-          ? 'bg-amber-600 text-white'
+          ? 'bg-primary text-primary-foreground'
           : `
             border border-border bg-background text-muted-foreground
             hover:bg-muted
@@ -1334,7 +1334,7 @@ export const AdminDashboardView: React.FC = () => {
                 }}
                 className="
                   rounded-xl bg-destructive px-4 py-2 text-xs font-semibold
-                  text-white transition-colors
+                  text-destructive-foreground transition-colors
                   hover:bg-destructive/90
                 "
               >

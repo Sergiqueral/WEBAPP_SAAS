@@ -54,6 +54,20 @@ export default async function RootLayout(props: {
 
   return (
     <html lang={locale} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var p = JSON.parse(localStorage.getItem('codex_user_preferences_v1') || '{}');
+                var d = p.theme === 'dark' || (p.theme !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (d) { document.documentElement.classList.add('dark'); }
+                else { document.documentElement.classList.remove('dark'); }
+              } catch (_) {}
+            `,
+          }}
+        />
+      </head>
       <body>
         <NextIntlClientProvider>
           {props.children}

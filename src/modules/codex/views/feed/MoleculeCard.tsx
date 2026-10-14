@@ -112,7 +112,7 @@ export const MoleculeCard: React.FC<MoleculeCardProps> = ({
                   transition-all
                   ${
               isDone
-                ? 'border-emerald-600 bg-emerald-600 text-white'
+                ? 'border-primary bg-primary text-primary-foreground'
                 : `
                   border-muted-foreground/40
                   hover:border-primary hover:bg-primary/10
@@ -135,7 +135,7 @@ export const MoleculeCard: React.FC<MoleculeCardProps> = ({
               )
             : (
                 <div className="
-                  flex size-5 items-center justify-center text-slate-400
+                  flex size-5 items-center justify-center text-muted-foreground
                 "
                 >
                   <Inbox className="size-4" />
